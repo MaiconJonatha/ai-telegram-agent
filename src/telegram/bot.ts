@@ -1,6 +1,7 @@
 import { Bot, Context } from "grammy";
 import { processMessage } from "../agent/agent";
-import { transcribeAudio } from "../agent/tools";
+import { transcribeAudio, generateImage } from "../agent/tools";
+import { InputFile } from "grammy";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const ALLOWED_USERS = (process.env.TELEGRAM_ALLOWED_USER_IDS || "")
@@ -36,6 +37,20 @@ bot.on("message:text", async (ctx) => {
   console.log(`[${new Date().toISOString()}] ${userName} (${userId}): ${text}`);
 
   try {
+    // Detectar pedido de imagem
+    const imgMatch = text.match(/^\/imagem\s+(.+)/i) || text.match(/^\/img\s+(.+)/i);
+    if (imgMatch) {
+      await ctx.reply("Gerando imagem... (pode levar ~30s)");
+      await ctx.replyWithChatAction("upload_photo");
+      const imgBuffer = await generateImage(imgMatch[1]);
+      if (imgBuffer) {
+        await ctx.replyWithPhoto(new InputFile(imgBuffer, "image.png"), { caption: imgMatch[1] });
+      } else {
+        await ctx.reply("Não consegui gerar a imagem. Tente outro prompt.");
+      }
+      return;
+    }
+
     // Mostrar "digitando..."
     await ctx.replyWithChatAction("typing");
 
