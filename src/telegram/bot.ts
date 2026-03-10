@@ -1,5 +1,6 @@
 import { Bot, Context } from "grammy";
 import { processMessage } from "../agent/agent";
+import { transcribeAudio } from "../agent/tools";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const ALLOWED_USERS = (process.env.TELEGRAM_ALLOWED_USER_IDS || "")
@@ -66,7 +67,46 @@ bot.on("message:photo", async (ctx) => {
 
 // Handler para voice
 bot.on("message:voice", async (ctx) => {
-  await ctx.reply("🎤 Recebi seu áudio! Em breve poderei ouvir e responder!");
+  const userId = ctx.from.id.toString();
+  const userName = ctx.from.first_name || "Usuário";
+
+  try {
+    await ctx.replyWithChatAction("typing");
+
+    // Download audio file
+    const file = await ctx.getFile();
+    const url = `https://api.telegram.org/file/bot${BOT_TOKEN}/${file.file_path}`;
+    const res = await fetch(url);
+    const buffer = Buffer.from(await res.arrayBuffer());
+
+    console.log(`[${new Date().toISOString()}] ${userName} (${userId}): [AUDIO ${buffer.length} bytes]`);
+
+    // Transcribe with Whisper
+    const text = await transcribeAudio(buffer);
+    if (!text) {
+      await ctx.reply("Não consegui entender o áudio. Tente novamente.");
+      return;
+    }
+
+    console.log(`[TRANSCRICAO] ${text}`);
+    await ctx.reply(`🎤 *Transcrição:* ${text}`, { parse_mode: "Markdown" }).catch(() => {});
+
+    // Process transcribed text
+    await ctx.replyWithChatAction("typing");
+    const response = await processMessage(userId, userName, text);
+
+    if (response.length > 4000) {
+      const parts = response.match(/.{1,4000}/gs) || [response];
+      for (const part of parts) {
+        await ctx.reply(part, { parse_mode: "Markdown" }).catch(() => ctx.reply(part));
+      }
+    } else {
+      await ctx.reply(response, { parse_mode: "Markdown" }).catch(() => ctx.reply(response));
+    }
+  } catch (error: any) {
+    console.error(`[ERRO AUDIO] ${error.message}`);
+    await ctx.reply("Erro ao processar áudio. Tente novamente.");
+  }
 });
 
 export default bot;

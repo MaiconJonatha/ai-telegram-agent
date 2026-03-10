@@ -101,6 +101,27 @@ export async function generateResponse(
   return "Todos os provedores estão temporariamente indisponíveis. Tente novamente em alguns minutos.";
 }
 
+export async function transcribeAudio(buffer: Buffer): Promise<string> {
+  // Groq Whisper (grátis)
+  if (process.env.GROQ_API_KEY) {
+    try {
+      const file = new File([new Uint8Array(buffer)], "audio.ogg", { type: "audio/ogg" });
+      const response = await groq.audio.transcriptions.create({
+        file,
+        model: "whisper-large-v3",
+        language: "pt",
+      });
+      if (response.text) {
+        console.log("[Whisper/Groq] OK");
+        return response.text;
+      }
+    } catch (e: any) {
+      console.log("[Whisper] Erro:", e.message);
+    }
+  }
+  return "";
+}
+
 export function getCurrentTime(): string {
   return new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
