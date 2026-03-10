@@ -12,11 +12,6 @@ const openrouter = new OpenAI({
   apiKey: process.env.OPENROUTER_API_KEY || "",
 });
 
-// Ollama local (fallback final)
-const ollama = new OpenAI({
-  baseURL: "http://localhost:11434/v1",
-  apiKey: "ollama",
-});
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -38,7 +33,7 @@ export async function generateResponse(
       const response = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
         messages: fullMessages,
-        max_tokens: 2048,
+        max_tokens: 1024,
         temperature: 0.7,
       });
       const text = response.choices[0]?.message?.content;
@@ -48,47 +43,62 @@ export async function generateResponse(
     }
   }
 
-  // 2. Claude (via OpenRouter) - inteligência máxima
-  if (process.env.OPENROUTER_API_KEY) {
+  // 2. Groq Llama 8B (menor, mais tokens/dia)
+  if (process.env.GROQ_API_KEY) {
     try {
-      const response = await openrouter.chat.completions.create({
-        model: "anthropic/claude-opus-4",
+      const response = await groq.chat.completions.create({
+        model: "llama-3.1-8b-instant",
         messages: fullMessages,
-        max_tokens: 2048,
+        max_tokens: 1024,
+        temperature: 0.7,
       });
       const text = response.choices[0]?.message?.content;
-      if (text) { console.log("[Claude] OK"); return text; }
+      if (text) { console.log("[Groq/Llama-8B] OK"); return text; }
     } catch (e: any) {
-      console.log("[Claude] Erro:", e.message);
+      console.log("[Groq-8B] Erro:", e.message);
     }
   }
 
-  // 3. Gemini (via OpenRouter) - Google AI
+  // 3. OpenRouter modelos gratuitos (não precisa créditos)
   if (process.env.OPENROUTER_API_KEY) {
-    try {
-      const response = await openrouter.chat.completions.create({
-        model: "google/gemini-2.5-pro",
-        messages: fullMessages,
-        max_tokens: 2048,
-      });
-      const text = response.choices[0]?.message?.content;
-      if (text) { console.log("[Gemini] OK"); return text; }
-    } catch (e: any) {
-      console.log("[Gemini] Erro:", e.message);
+    const freeModels = [
+      "google/gemini-2.0-flash-exp:free",
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "qwen/qwen3-235b-a22b:free",
+    ];
+    for (const model of freeModels) {
+      try {
+        const response = await openrouter.chat.completions.create({
+          model,
+          messages: fullMessages,
+          max_tokens: 1024,
+        });
+        const text = response.choices[0]?.message?.content;
+        if (text) { console.log(`[OpenRouter/${model}] OK`); return text; }
+      } catch (e: any) {
+        console.log(`[${model}] Erro:`, e.message);
+      }
     }
   }
 
-  // 4. Ollama local (fallback final)
-  try {
-    const response = await ollama.chat.completions.create({
-      model: "llama3.2:3b",
-      messages: fullMessages,
-      max_tokens: 2048,
-    });
-    return response.choices[0]?.message?.content || "Sem resposta.";
-  } catch (e: any) {
-    return `Erro em todos os provedores: ${e.message}`;
+  // 4. OpenRouter pagos (Claude + Gemini) - quando tiver créditos
+  if (process.env.OPENROUTER_API_KEY) {
+    for (const model of ["anthropic/claude-opus-4", "google/gemini-2.5-pro"]) {
+      try {
+        const response = await openrouter.chat.completions.create({
+          model,
+          messages: fullMessages,
+          max_tokens: 1024,
+        });
+        const text = response.choices[0]?.message?.content;
+        if (text) { console.log(`[${model}] OK`); return text; }
+      } catch (e: any) {
+        console.log(`[${model}] Erro:`, e.message);
+      }
+    }
   }
+
+  return "Todos os provedores estão temporariamente indisponíveis. Tente novamente em alguns minutos.";
 }
 
 export function getCurrentTime(): string {
