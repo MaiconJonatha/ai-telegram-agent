@@ -1,0 +1,12 @@
+services:
+  - type: worker
+    name: arcanjobot
+    runtime: docker
+    repo: https://github.com/MaiconJonatha/ai-telegram-agent
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
