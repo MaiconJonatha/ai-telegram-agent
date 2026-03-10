@@ -62,9 +62,9 @@ export async function generateResponse(
   // 3. OpenRouter modelos gratuitos (não precisa créditos)
   if (process.env.OPENROUTER_API_KEY) {
     const freeModels = [
-      "google/gemini-2.0-flash-exp:free",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "qwen/qwen3-235b-a22b:free",
+      "google/gemma-3-12b-it:free",
+      "google/gemma-3-27b-it:free",
+      "mistralai/mistral-small-3.1-24b-instruct:free",
     ];
     for (const model of freeModels) {
       try {
