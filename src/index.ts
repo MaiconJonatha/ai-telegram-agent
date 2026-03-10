@@ -6,7 +6,7 @@ const PORT = parseInt(process.env.PORT || "10000");
 
 console.log("🚀 Iniciando ArcanjoBot...");
 console.log(`📡 Telegram Bot via Long Polling`);
-console.log(`🧠 LLM: Groq → Claude Opus 4 → Gemini 2.5 Pro → Ollama`);
+console.log(`🧠 LLM: Groq → OpenRouter Free → Claude/Gemini Pro`);
 console.log(`💾 Memória: SQLite (better-sqlite3)`);
 console.log(`⏰ ${new Date().toLocaleString("pt-BR")}`);
 console.log("---");
@@ -17,7 +17,7 @@ const server = http.createServer((req, res) => {
   res.end(JSON.stringify({
     status: "online",
     bot: "@ArcanjoBot_ia_bot",
-    llm: ["Groq/Llama-3.3-70B", "Claude-Opus-4", "Gemini-2.5-Pro", "Ollama"],
+    llm: ["Groq/Llama-70B", "Groq/Llama-8B", "Gemini-2.0-Flash-Free", "Llama-70B-Free", "Qwen3-235B-Free", "Claude-Opus-4", "Gemini-2.5-Pro"],
     uptime: process.uptime(),
   }));
 });
