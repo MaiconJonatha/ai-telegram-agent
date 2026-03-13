@@ -282,7 +282,35 @@ export async function transcribeAudio(buffer: Buffer): Promise<string> {
 }
 
 export async function generateImage(prompt: string): Promise<Buffer | null> {
-  // 1. Pollinations.ai (grátis, sem chave, rápido)
+  // 1. Gemini Imagen 3 (grátis com API key)
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      console.log(`[IMG/Gemini-Imagen] Gerando: ${prompt.substring(0, 50)}...`);
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${process.env.GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            instances: [{ prompt: prompt }],
+            parameters: { sampleCount: 1, aspectRatio: "1:1" },
+          }),
+        }
+      );
+      if (res.ok) {
+        const data = await res.json() as any;
+        const b64 = data.predictions?.[0]?.bytesBase64Encoded;
+        if (b64) {
+          console.log("[IMG/Gemini-Imagen] OK!");
+          return Buffer.from(b64, "base64");
+        }
+      }
+    } catch (e: any) {
+      console.log("[IMG/Gemini-Imagen] Erro:", e.message);
+    }
+  }
+
+  // 2. Pollinations.ai (grátis, sem chave, rápido)
   try {
     console.log(`[IMG/Pollinations] Gerando: ${prompt.substring(0, 50)}...`);
     const encodedPrompt = encodeURIComponent(prompt + ", high quality, detailed");
@@ -365,6 +393,91 @@ export async function generateImage(prompt: string): Promise<Buffer | null> {
   }
 }
 
+export async function generateVideo(prompt: string): Promise<Buffer | null> {
+  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_KEY) {
+    console.log("[VID] Sem GEMINI_API_KEY");
+    return null;
+  }
+
+  try {
+    console.log(`[VID/Gemini-Veo] Gerando: ${prompt.substring(0, 50)}...`);
+
+    // 1. Iniciar geração
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning?key=${GEMINI_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instances: [{ prompt: prompt }],
+          parameters: {
+            aspectRatio: "16:9",
+            durationSeconds: 5,
+            personGeneration: "allow_adult",
+          },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.log("[VID/Veo] Erro ao iniciar:", err);
+      return null;
+    }
+
+    const data = await res.json() as any;
+    const operationName = data.name;
+    if (!operationName) {
+      console.log("[VID/Veo] Sem operation name:", JSON.stringify(data));
+      return null;
+    }
+
+    // 2. Poll for completion (max 3 min)
+    for (let i = 0; i < 36; i++) {
+      await new Promise(r => setTimeout(r, 5000));
+      const check = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/${operationName}?key=${GEMINI_KEY}`
+      );
+      const status = await check.json() as any;
+
+      if (status.done) {
+        // Extrair vídeo
+        const videoB64 = status.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.bytesBase64Encoded;
+        if (videoB64) {
+          console.log("[VID/Gemini-Veo] OK!");
+          return Buffer.from(videoB64, "base64");
+        }
+
+        // Pode ter URI em vez de base64
+        const videoUri = status.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+        if (videoUri) {
+          console.log(`[VID/Veo] Baixando de URI...`);
+          const vidRes = await fetch(videoUri);
+          if (vidRes.ok) {
+            const buf = Buffer.from(await vidRes.arrayBuffer());
+            if (buf.length > 1000) {
+              console.log("[VID/Gemini-Veo] OK via URI!");
+              return buf;
+            }
+          }
+        }
+
+        console.log("[VID/Veo] Sem vídeo no resultado:", JSON.stringify(status).substring(0, 200));
+        return null;
+      }
+
+      if (i % 6 === 0) console.log(`[VID/Veo] Aguardando... ${i * 5}s`);
+    }
+
+    console.log("[VID/Veo] Timeout");
+    return null;
+  } catch (e: any) {
+    console.log("[VID/Veo] Erro:", e.message);
+    return null;
+  }
+}
+
 export function getCurrentTime(): string {
   return new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
@@ -375,7 +488,7 @@ export function getProviderStatus(): string[] {
   if (process.env.GROQ_API_KEY) providers.push("✅ Groq (Llama 3.3 70B, Llama 3.1 8B)");
   else providers.push("❌ Groq (sem GROQ_API_KEY)");
 
-  if (process.env.GEMINI_API_KEY) providers.push("✅ Google Gemini (Flash 2.0, Flash Lite, 1.5 Flash)");
+  if (process.env.GEMINI_API_KEY) providers.push("✅ Google Gemini (Flash 2.0, Imagen 3, Veo 2 vídeo)");
   else providers.push("❌ Google Gemini (sem GEMINI_API_KEY)");
 
   if (process.env.HF_API_KEY) providers.push("✅ Hugging Face (Llama 70B, Mixtral, Phi-3, Whisper, SDXL)");

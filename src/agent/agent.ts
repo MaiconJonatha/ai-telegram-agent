@@ -80,7 +80,8 @@ export async function processMessage(userId: string, userName: string, text: str
       `/sobre - Sobre mim\n` +
       `/hora - Hora atual\n` +
       `/modelos - Ver IAs disponíveis\n` +
-      `/imagem [texto] - Gerar imagem\n\n` +
+      `/imagem [texto] - Gerar imagem\n` +
+      `/video [texto] - Gerar vídeo (Gemini Veo)\n\n` +
       `**Programação 💻:**\n` +
       `/repos - Listar repositórios\n` +
       `/repo [nome] - Selecionar repo ativo\n` +

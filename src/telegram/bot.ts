@@ -1,6 +1,6 @@
 import { Bot, Context } from "grammy";
 import { processMessage, activeRepos } from "../agent/agent";
-import { transcribeAudio, generateImage } from "../agent/tools";
+import { transcribeAudio, generateImage, generateVideo } from "../agent/tools";
 import { listRepos, getRepoTree, readFile, executeCoderTask, isGitHubConfigured } from "../agent/coder";
 import { InputFile } from "grammy";
 
@@ -51,6 +51,20 @@ bot.on("message:text", async (ctx) => {
         await ctx.replyWithPhoto(new InputFile(imgBuffer, "image.png"), { caption: imgMatch[1] });
       } else {
         await ctx.reply("Não consegui gerar a imagem. Tente outro prompt.");
+      }
+      return;
+    }
+
+    // ========== COMANDO DE VÍDEO ==========
+    const vidMatch = text.match(/^\/video\s+(.+)/i) || text.match(/^\/vídeo\s+(.+)/i);
+    if (vidMatch) {
+      await ctx.reply("🎬 Gerando vídeo com Gemini Veo... (pode levar ~1-2 min)");
+      await ctx.replyWithChatAction("upload_video");
+      const vidBuffer = await generateVideo(vidMatch[1]);
+      if (vidBuffer) {
+        await ctx.replyWithVideo(new InputFile(vidBuffer, "video.mp4"), { caption: vidMatch[1] });
+      } else {
+        await ctx.reply("❌ Não consegui gerar o vídeo. Verifique se a GEMINI_API_KEY está configurada e tente outro prompt.");
       }
       return;
     }
