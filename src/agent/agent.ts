@@ -38,13 +38,19 @@ export async function processMessage(userId: string, userName: string, text: str
     saveUserPreference(userId, userName, "");
     return `Olá ${userName}! 👋\n\n` +
       `Eu sou o **ArcanjoBot** 🤖⚡\n` +
-      `Um agente de IA com memória persistente e múltiplos provedores!\n\n` +
-      `Comandos:\n` +
+      `Um agente de IA programador que roda 24/7!\n\n` +
+      `**Geral:**\n` +
       `/limpar - Limpar histórico\n` +
       `/sobre - Sobre mim\n` +
       `/hora - Hora atual\n` +
       `/modelos - Ver IAs disponíveis\n` +
       `/imagem [texto] - Gerar imagem\n\n` +
+      `**Programação 💻:**\n` +
+      `/repos - Listar repositórios\n` +
+      `/repo [nome] - Selecionar repo ativo\n` +
+      `/arquivos [path] - Ver arquivos do repo\n` +
+      `/ler [path] - Ler arquivo\n` +
+      `/code [tarefa] - Programar automaticamente!\n\n` +
       `Pode me perguntar qualquer coisa!`;
   }
 
