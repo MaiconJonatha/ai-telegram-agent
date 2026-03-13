@@ -2,6 +2,7 @@ import "dotenv/config";
 import http from "http";
 import { initDatabase } from "./db/memory";
 import bot from "./telegram/bot";
+import { webhookCallback } from "grammy";
 
 const PORT = parseInt(process.env.PORT || "10000");
 
@@ -10,50 +11,38 @@ console.log(`🧠 LLM: Groq → Gemini → HuggingFace → Cohere → DeepSeek �
 console.log(`⏰ ${new Date().toLocaleString("pt-BR")}`);
 console.log("---");
 
-// Health check HTTP server
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ status: "online", uptime: process.uptime() }));
-});
+const handleUpdate = webhookCallback(bot, "http");
 
-server.listen(PORT, () => {
-  console.log(`🌐 Health server on port ${PORT}`);
+const server = http.createServer(async (req, res) => {
+  if (req.url === "/webhook" && req.method === "POST") {
+    try {
+      await handleUpdate(req, res);
+    } catch (e: any) {
+      console.error("❌ Webhook error:", e.message);
+      res.writeHead(200);
+      res.end();
+    }
+  } else {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "online", mode: "webhook", uptime: process.uptime() }));
+  }
 });
 
 async function start() {
-  // Inicializar banco de dados
   await initDatabase();
+  console.log("📡 Modo: Webhook");
 
-  // Deletar webhook e limpar updates pendentes
-  console.log("🔄 Limpando webhook antigo...");
-  await bot.api.deleteWebhook({ drop_pending_updates: true });
-
-  // Esperar pra garantir que não tem outra instância
-  console.log("⏳ Aguardando 3s...");
-  await new Promise(r => setTimeout(r, 3000));
-
-  console.log("📡 Iniciando Long Polling...");
-  bot.start({
-    onStart: (botInfo) => {
-      console.log(`✅ Bot @${botInfo.username} está online!`);
-      console.log(`🔗 https://t.me/${botInfo.username}`);
-    },
+  server.listen(PORT, () => {
+    console.log(`🌐 Server on port ${PORT}`);
+    console.log("✅ Bot está online e pronto!");
   });
 }
 
 start().catch((e) => {
   console.error("❌ Erro fatal:", e.message);
-  // Não sair imediatamente - manter o health server rodando
-  // pra evitar restart loop no Render
-  console.log("⚠️ Bot offline, health server mantido ativo. Retry em 30s...");
-  setTimeout(() => {
-    start().catch((e2) => {
-      console.error("❌ Segundo erro:", e2.message);
-    });
-  }, 30000);
+  process.exit(1);
 });
 
-// Catch unhandled errors pra não crashar
 bot.catch((err) => {
   console.error("❌ Bot error:", err.message);
 });
@@ -66,15 +55,7 @@ process.on("unhandledRejection", (e: any) => {
   console.error("❌ Unhandled:", e?.message || e);
 });
 
-// Graceful shutdown
-process.on("SIGINT", () => {
-  bot.stop();
-  server.close();
-  process.exit(0);
-});
-
 process.on("SIGTERM", () => {
-  bot.stop();
   server.close();
   process.exit(0);
 });
