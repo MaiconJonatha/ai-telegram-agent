@@ -17,3 +17,7 @@ services:
         sync: false
       - key: COHERE_API_KEY
         sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: SILICONFLOW_API_KEY
+        sync: false

@@ -18,6 +18,8 @@ Provedores de IA disponíveis:
 - Google Gemini (Flash 2.0) - grátis
 - Hugging Face (Llama, Mixtral, Phi-3) - open source
 - Cohere (Command R+) - grátis
+- DeepSeek (Chat, Reasoner) - chinesa, muito forte
+- SiliconFlow (Qwen 72B, DeepSeek V3, GLM-4, Yi-34B) - chinesa, grátis
 - OpenRouter (Gemma, Mistral, Claude, Gemini Pro)
 
 Regras:
@@ -54,10 +56,10 @@ export async function processMessage(userId: string, userName: string, text: str
   if (text === "/sobre") {
     return "🤖 **ArcanjoBot** - Agente de IA Multi-Provider\n\n" +
       "• Memória persistente (SQLite)\n" +
-      "• LLMs: Groq → Gemini → HuggingFace → Cohere → OpenRouter\n" +
+      "• LLMs: Groq → Gemini → HuggingFace → Cohere → DeepSeek → SiliconFlow → OpenRouter\n" +
       "• Imagens: Pollinations → HuggingFace → Stable Horde\n" +
       "• Áudio: Whisper (Groq + HuggingFace)\n" +
-      "• 7 provedores de IA gratuitos integrados\n\n" +
+      "• 9 provedores de IA gratuitos integrados\n\n" +
       "Feito com ❤️ e IA";
   }
 

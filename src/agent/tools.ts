@@ -30,6 +30,18 @@ const cohere = new OpenAI({
   apiKey: process.env.COHERE_API_KEY || "",
 });
 
+// DeepSeek (chinesa, grátis créditos iniciais, muito forte)
+const deepseek = new OpenAI({
+  baseURL: "https://api.deepseek.com/v1",
+  apiKey: process.env.DEEPSEEK_API_KEY || "",
+});
+
+// SiliconFlow (chinesa, grátis, Qwen/GLM/DeepSeek)
+const siliconflow = new OpenAI({
+  baseURL: "https://api.siliconflow.cn/v1",
+  apiKey: process.env.SILICONFLOW_API_KEY || "",
+});
+
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -143,7 +155,50 @@ export async function generateResponse(
     }
   }
 
-  // 6. OpenRouter modelos gratuitos
+  // 6. DeepSeek (chinesa, muito forte em código e raciocínio)
+  if (process.env.DEEPSEEK_API_KEY) {
+    const dsModels = ["deepseek-chat", "deepseek-reasoner"];
+    for (const model of dsModels) {
+      try {
+        const response = await deepseek.chat.completions.create({
+          model,
+          messages: fullMessages,
+          max_tokens: 1024,
+          temperature: 0.7,
+        });
+        const text = response.choices[0]?.message?.content;
+        if (text) { lastProvider = `DeepSeek/${model}`; console.log(`[${lastProvider}] OK`); return text; }
+      } catch (e: any) {
+        console.log(`[DeepSeek/${model}] Erro:`, e.message);
+      }
+    }
+  }
+
+  // 7. SiliconFlow (chinesa, Qwen + GLM + DeepSeek grátis)
+  if (process.env.SILICONFLOW_API_KEY) {
+    const sfModels = [
+      "Qwen/Qwen2.5-72B-Instruct",
+      "deepseek-ai/DeepSeek-V3",
+      "THUDM/glm-4-9b-chat",
+      "01-ai/Yi-1.5-34B-Chat",
+    ];
+    for (const model of sfModels) {
+      try {
+        const response = await siliconflow.chat.completions.create({
+          model,
+          messages: fullMessages,
+          max_tokens: 1024,
+          temperature: 0.7,
+        });
+        const text = response.choices[0]?.message?.content;
+        if (text) { lastProvider = `SiliconFlow/${model.split("/")[1]}`; console.log(`[${lastProvider}] OK`); return text; }
+      } catch (e: any) {
+        console.log(`[SiliconFlow/${model}] Erro:`, e.message);
+      }
+    }
+  }
+
+  // 8. OpenRouter modelos gratuitos
   if (process.env.OPENROUTER_API_KEY) {
     const freeModels = [
       "google/gemma-3-12b-it:free",
@@ -165,7 +220,7 @@ export async function generateResponse(
     }
   }
 
-  // 7. OpenRouter pagos (Claude + Gemini) - quando tiver créditos
+  // 9. OpenRouter pagos (Claude + Gemini) - quando tiver créditos
   if (process.env.OPENROUTER_API_KEY) {
     for (const model of ["anthropic/claude-opus-4", "google/gemini-2.5-pro"]) {
       try {
@@ -328,6 +383,12 @@ export function getProviderStatus(): string[] {
 
   if (process.env.COHERE_API_KEY) providers.push("✅ Cohere (Command R+)");
   else providers.push("❌ Cohere (sem COHERE_API_KEY)");
+
+  if (process.env.DEEPSEEK_API_KEY) providers.push("✅ DeepSeek 🇨🇳 (DeepSeek-Chat, DeepSeek-Reasoner)");
+  else providers.push("❌ DeepSeek (sem DEEPSEEK_API_KEY)");
+
+  if (process.env.SILICONFLOW_API_KEY) providers.push("✅ SiliconFlow 🇨🇳 (Qwen 72B, DeepSeek V3, GLM-4, Yi-34B)");
+  else providers.push("❌ SiliconFlow (sem SILICONFLOW_API_KEY)");
 
   if (process.env.OPENROUTER_API_KEY) providers.push("✅ OpenRouter (Gemma, Mistral, Claude, Gemini Pro)");
   else providers.push("❌ OpenRouter (sem OPENROUTER_API_KEY)");
