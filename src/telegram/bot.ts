@@ -1,5 +1,5 @@
 import { Bot, Context } from "grammy";
-import { processMessage } from "../agent/agent";
+import { processMessage, activeRepos } from "../agent/agent";
 import { transcribeAudio, generateImage } from "../agent/tools";
 import { listRepos, getRepoTree, readFile, executeCoderTask, isGitHubConfigured } from "../agent/coder";
 import { InputFile } from "grammy";
@@ -29,8 +29,8 @@ bot.use(async (ctx: Context, next) => {
   await next();
 });
 
-// Repo ativo por usuário (para não precisar digitar toda vez)
-const activeRepo: Record<string, string> = {};
+// Usar repo ativo compartilhado com agent.ts
+const activeRepo = activeRepos;
 
 // Handler para todas mensagens de texto
 bot.on("message:text", async (ctx) => {

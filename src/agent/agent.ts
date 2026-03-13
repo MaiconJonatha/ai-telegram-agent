@@ -1,14 +1,17 @@
 import { generateResponse, ChatMessage, getCurrentTime, getLastProvider, getProviderStatus } from "./tools";
 import { saveMessage, getHistory, getUserPreference, saveUserPreference, clearHistory } from "../db/memory";
+import { executeCoderTask, isGitHubConfigured } from "./coder";
 
 const SYSTEM_PROMPT = `Você é um Agente de IA avançado chamado "ArcanjoBot" 🤖⚡
 Você tem acesso a múltiplos provedores de IA gratuitos como fallback.
+Você também é um agente programador autônomo que pode editar código no GitHub.
 
 Suas capacidades:
 - Conversar de forma inteligente e natural em português
 - Lembrar do contexto de conversas anteriores (memória persistente)
 - Gerar imagens com /imagem ou /img (Pollinations, HuggingFace, StableHorde)
 - Transcrever áudio (Whisper via Groq e HuggingFace)
+- Programar automaticamente em repositórios GitHub
 - Informar hora atual
 - Ajudar com programação, textos, ideias
 - Responder sobre religião, espiritualidade, tecnologia
@@ -32,6 +35,39 @@ Regras:
 
 Você é amigável, inteligente e prestativo. Seu tom é casual mas respeitoso.`;
 
+// Detectar se a mensagem é um pedido de programação
+const CODING_KEYWORDS = [
+  "cria um", "crie um", "criar um", "faz um", "faça um", "fazer um",
+  "programa", "código", "codigo", "script", "função", "funcao",
+  "adiciona", "adicione", "implementa", "implemente",
+  "corrige", "corrija", "fix", "bug",
+  "refatora", "refatore", "melhora", "melhore",
+  "html", "css", "javascript", "typescript", "python", "react", "node",
+  "api", "endpoint", "rota", "route",
+  "componente", "component", "página", "pagina", "page",
+  "banco de dados", "database", "tabela", "table",
+  "deploy", "dockerfile", "docker",
+  "no repo", "no repositório", "no repositorio",
+  "commit", "push", "pull request",
+];
+
+function isCodingRequest(text: string): boolean {
+  const lower = text.toLowerCase();
+  // Precisa ter pelo menos 2 keywords OU menção explícita a repo/arquivo
+  let matches = 0;
+  for (const kw of CODING_KEYWORDS) {
+    if (lower.includes(kw)) matches++;
+  }
+  // Menção explícita a programar no repo
+  if (lower.includes("no repo") || lower.includes("no meu repo")) return true;
+  if (lower.includes("programa pra mim") || lower.includes("programa isso")) return true;
+  if (lower.includes("cria no github") || lower.includes("faz no github")) return true;
+  return matches >= 2;
+}
+
+// Repo ativo por usuário (compartilhado com bot.ts via export)
+export const activeRepos: Record<string, string> = {};
+
 export async function processMessage(userId: string, userName: string, text: string): Promise<string> {
   // Comandos especiais
   if (text === "/start") {
@@ -51,7 +87,8 @@ export async function processMessage(userId: string, userName: string, text: str
       `/arquivos [path] - Ver arquivos do repo\n` +
       `/ler [path] - Ler arquivo\n` +
       `/code [tarefa] - Programar automaticamente!\n\n` +
-      `Pode me perguntar qualquer coisa!`;
+      `Ou só me pede normalmente que eu detecto! Ex:\n` +
+      `"Cria uma página de login no meu repo"`;
   }
 
   if (text === "/limpar") {
@@ -60,11 +97,12 @@ export async function processMessage(userId: string, userName: string, text: str
   }
 
   if (text === "/sobre") {
-    return "🤖 **ArcanjoBot** - Agente de IA Multi-Provider\n\n" +
+    return "🤖 **ArcanjoBot** - Agente de IA Programador 24/7\n\n" +
       "• Memória persistente (SQLite)\n" +
       "• LLMs: Groq → Gemini → HuggingFace → Cohere → DeepSeek → SiliconFlow → OpenRouter\n" +
       "• Imagens: Pollinations → HuggingFace → Stable Horde\n" +
       "• Áudio: Whisper (Groq + HuggingFace)\n" +
+      "• Programação: GitHub API (ler, criar, editar, PRs)\n" +
       "• 9 provedores de IA gratuitos integrados\n\n" +
       "Feito com ❤️ e IA";
   }
@@ -81,6 +119,26 @@ export async function processMessage(userId: string, userName: string, text: str
 
   // Salvar mensagem do usuário
   saveMessage(userId, "user", text);
+
+  // Detectar se é pedido de programação
+  if (isCodingRequest(text) && isGitHubConfigured()) {
+    const repo = activeRepos[userId];
+    if (repo) {
+      console.log(`[CODER] Detectado pedido de programação de ${userName}: ${text.substring(0, 50)}...`);
+      const result = await executeCoderTask(text, repo);
+      saveMessage(userId, "assistant", result);
+      return result;
+    } else {
+      // Parece programação mas não tem repo selecionado
+      const hint = "💡 Parece que você quer que eu programe algo! " +
+        "Selecione um repo primeiro:\n\n" +
+        "`/repos` - Ver seus repositórios\n" +
+        "`/repo usuario/repo` - Selecionar repo\n\n" +
+        "Depois é só pedir normalmente!";
+      saveMessage(userId, "assistant", hint);
+      return hint;
+    }
+  }
 
   // Buscar histórico
   const history = getHistory(userId, 20);
