@@ -16,10 +16,11 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "application/json" });
   res.end(JSON.stringify({
     status: "online",
-    bot: "@ArcanjoBot_ia_bot",
-    llm: ["Groq/Llama-70B", "Groq/Llama-8B", "Gemini-2.0-Flash", "HuggingFace/Llama-70B", "HuggingFace/Mixtral", "Cohere/Command-R+", "DeepSeek-Chat", "DeepSeek-Reasoner", "SiliconFlow/Qwen-72B", "SiliconFlow/GLM-4", "SiliconFlow/Yi-34B", "OpenRouter/Gemma", "OpenRouter/Mistral", "Claude-Opus-4", "Gemini-2.5-Pro"],
-    images: ["Pollinations.ai", "HuggingFace/SDXL", "StableHorde"],
+    llm: ["Groq", "Gemini", "HuggingFace", "Cohere", "DeepSeek", "OpenRouter"],
+    images: ["Gemini-Imagen", "Pollinations", "HuggingFace/SDXL", "StableHorde"],
+    video: ["Gemini-Veo"],
     audio: ["Groq/Whisper", "HuggingFace/Whisper"],
+    coding: ["GitHub API"],
     uptime: process.uptime(),
   }));
 });
@@ -28,13 +29,36 @@ server.listen(PORT, () => {
   console.log(`🌐 Health server on port ${PORT}`);
 });
 
-// Iniciar bot com long polling
-bot.start({
-  onStart: (botInfo) => {
-    console.log(`✅ Bot @${botInfo.username} está online!`);
-    console.log(`🔗 https://t.me/${botInfo.username}`);
-  },
-});
+// Limpar webhook antigo antes de usar long polling
+async function startBot() {
+  try {
+    // Deletar webhook pra garantir que long polling funciona
+    await bot.api.deleteWebhook({ drop_pending_updates: true });
+    console.log("🔄 Webhook limpo, iniciando long polling...");
+
+    // Esperar 2s pra garantir que instância antiga morreu
+    await new Promise(r => setTimeout(r, 2000));
+
+    await bot.start({
+      onStart: (botInfo) => {
+        console.log(`✅ Bot @${botInfo.username} está online!`);
+        console.log(`🔗 https://t.me/${botInfo.username}`);
+      },
+    });
+  } catch (e: any) {
+    console.error("❌ Erro ao iniciar bot:", e.message);
+    // Se for conflito, esperar e tentar de novo
+    if (e.message?.includes("409") || e.message?.includes("Conflict")) {
+      console.log("⏳ Conflito detectado, esperando 5s e tentando novamente...");
+      await new Promise(r => setTimeout(r, 5000));
+      await startBot();
+    } else {
+      process.exit(1);
+    }
+  }
+}
+
+startBot();
 
 // Graceful shutdown
 process.on("SIGINT", () => {
