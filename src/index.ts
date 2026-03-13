@@ -2,85 +2,79 @@ import "dotenv/config";
 import http from "http";
 import { initDatabase } from "./db/memory";
 import bot from "./telegram/bot";
-import { webhookCallback } from "grammy";
 
 const PORT = parseInt(process.env.PORT || "10000");
-const RENDER_URL = process.env.RENDER_EXTERNAL_URL || "";
 
 console.log("🚀 Iniciando ArcanjoBot...");
 console.log(`🧠 LLM: Groq → Gemini → HuggingFace → Cohere → DeepSeek → OpenRouter`);
 console.log(`⏰ ${new Date().toLocaleString("pt-BR")}`);
 console.log("---");
 
+// Health check HTTP server
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ status: "online", uptime: process.uptime() }));
+});
+
+server.listen(PORT, () => {
+  console.log(`🌐 Health server on port ${PORT}`);
+});
+
 async function start() {
   // Inicializar banco de dados
   await initDatabase();
 
-  // Se tem URL do Render, usar webhook (mais estável)
-  if (RENDER_URL) {
-    const webhookUrl = `${RENDER_URL}/webhook`;
-    console.log(`📡 Modo: Webhook → ${webhookUrl}`);
+  // Deletar webhook e limpar updates pendentes
+  console.log("🔄 Limpando webhook antigo...");
+  await bot.api.deleteWebhook({ drop_pending_updates: true });
 
-    await bot.api.setWebhook(webhookUrl, { drop_pending_updates: true });
-    console.log("✅ Webhook configurado!");
+  // Esperar pra garantir que não tem outra instância
+  console.log("⏳ Aguardando 3s...");
+  await new Promise(r => setTimeout(r, 3000));
 
-    const handleUpdate = webhookCallback(bot, "http");
-
-    const server = http.createServer(async (req, res) => {
-      if (req.url === "/webhook" && req.method === "POST") {
-        // Processar update do Telegram
-        await handleUpdate(req, res);
-      } else {
-        // Health check
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({
-          status: "online",
-          mode: "webhook",
-          uptime: process.uptime(),
-        }));
-      }
-    });
-
-    server.listen(PORT, () => {
-      console.log(`🌐 Server on port ${PORT}`);
-      console.log(`✅ Bot está online!`);
-    });
-
-  } else {
-    // Fallback: long polling (dev local)
-    console.log("📡 Modo: Long Polling (dev)");
-
-    const server = http.createServer((req, res) => {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "online", mode: "polling", uptime: process.uptime() }));
-    });
-
-    server.listen(PORT, () => {
-      console.log(`🌐 Health server on port ${PORT}`);
-    });
-
-    await bot.api.deleteWebhook({ drop_pending_updates: true });
-
-    bot.start({
-      onStart: (botInfo) => {
-        console.log(`✅ Bot @${botInfo.username} está online!`);
-      },
-    });
-  }
+  console.log("📡 Iniciando Long Polling...");
+  bot.start({
+    onStart: (botInfo) => {
+      console.log(`✅ Bot @${botInfo.username} está online!`);
+      console.log(`🔗 https://t.me/${botInfo.username}`);
+    },
+  });
 }
 
 start().catch((e) => {
   console.error("❌ Erro fatal:", e.message);
-  process.exit(1);
+  // Não sair imediatamente - manter o health server rodando
+  // pra evitar restart loop no Render
+  console.log("⚠️ Bot offline, health server mantido ativo. Retry em 30s...");
+  setTimeout(() => {
+    start().catch((e2) => {
+      console.error("❌ Segundo erro:", e2.message);
+    });
+  }, 30000);
+});
+
+// Catch unhandled errors pra não crashar
+bot.catch((err) => {
+  console.error("❌ Bot error:", err.message);
+});
+
+process.on("uncaughtException", (e) => {
+  console.error("❌ Uncaught:", e.message);
+});
+
+process.on("unhandledRejection", (e: any) => {
+  console.error("❌ Unhandled:", e?.message || e);
 });
 
 // Graceful shutdown
 process.on("SIGINT", () => {
   bot.stop();
+  server.close();
   process.exit(0);
 });
 
 process.on("SIGTERM", () => {
   bot.stop();
+  server.close();
   process.exit(0);
 });
