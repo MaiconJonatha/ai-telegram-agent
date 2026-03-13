@@ -1,16 +1,24 @@
-import { generateResponse, ChatMessage, getCurrentTime } from "./tools";
+import { generateResponse, ChatMessage, getCurrentTime, getLastProvider, getProviderStatus } from "./tools";
 import { saveMessage, getHistory, getUserPreference, saveUserPreference, clearHistory } from "../db/memory";
 
 const SYSTEM_PROMPT = `Você é um Agente de IA avançado chamado "ArcanjoBot" 🤖⚡
-Você faz parte de um ecossistema de 16 serviços de IA rodando localmente.
+Você tem acesso a múltiplos provedores de IA gratuitos como fallback.
 
 Suas capacidades:
 - Conversar de forma inteligente e natural em português
 - Lembrar do contexto de conversas anteriores (memória persistente)
-- Gerar imagens (descreva o que quer e eu guio o processo)
+- Gerar imagens com /imagem ou /img (Pollinations, HuggingFace, StableHorde)
+- Transcrever áudio (Whisper via Groq e HuggingFace)
 - Informar hora atual
 - Ajudar com programação, textos, ideias
 - Responder sobre religião, espiritualidade, tecnologia
+
+Provedores de IA disponíveis:
+- Groq (Llama 3.3 70B, Llama 3.1 8B) - ultra rápido
+- Google Gemini (Flash 2.0) - grátis
+- Hugging Face (Llama, Mixtral, Phi-3) - open source
+- Cohere (Command R+) - grátis
+- OpenRouter (Gemma, Mistral, Claude, Gemini Pro)
 
 Regras:
 - Responda SEMPRE em português do Brasil
@@ -18,6 +26,7 @@ Regras:
 - Use emojis quando apropriado
 - Hora atual: {{TIME}}
 - Nome do usuário: {{USER_NAME}}
+- Provedor atual: {{PROVIDER}}
 
 Você é amigável, inteligente e prestativo. Seu tom é casual mas respeitoso.`;
 
@@ -25,7 +34,16 @@ export async function processMessage(userId: string, userName: string, text: str
   // Comandos especiais
   if (text === "/start") {
     saveUserPreference(userId, userName, "");
-    return `Olá ${userName}! 👋\n\nEu sou o **ArcanjoBot** 🤖⚡\nUm agente de IA com memória persistente!\n\nComandos:\n/limpar - Limpar histórico\n/sobre - Sobre mim\n/hora - Hora atual\n\nPode me perguntar qualquer coisa!`;
+    return `Olá ${userName}! 👋\n\n` +
+      `Eu sou o **ArcanjoBot** 🤖⚡\n` +
+      `Um agente de IA com memória persistente e múltiplos provedores!\n\n` +
+      `Comandos:\n` +
+      `/limpar - Limpar histórico\n` +
+      `/sobre - Sobre mim\n` +
+      `/hora - Hora atual\n` +
+      `/modelos - Ver IAs disponíveis\n` +
+      `/imagem [texto] - Gerar imagem\n\n` +
+      `Pode me perguntar qualquer coisa!`;
   }
 
   if (text === "/limpar") {
@@ -34,16 +52,23 @@ export async function processMessage(userId: string, userName: string, text: str
   }
 
   if (text === "/sobre") {
-    return "🤖 **ArcanjoBot** - Agente de IA\n\n" +
+    return "🤖 **ArcanjoBot** - Agente de IA Multi-Provider\n\n" +
       "• Memória persistente (SQLite)\n" +
-      "• LLM: Groq → OpenRouter → Ollama\n" +
-      "• Parte do ecossistema de 16 IAs\n" +
-      "• Criado com Google Antigravity\n\n" +
+      "• LLMs: Groq → Gemini → HuggingFace → Cohere → OpenRouter\n" +
+      "• Imagens: Pollinations → HuggingFace → Stable Horde\n" +
+      "• Áudio: Whisper (Groq + HuggingFace)\n" +
+      "• 7 provedores de IA gratuitos integrados\n\n" +
       "Feito com ❤️ e IA";
   }
 
   if (text === "/hora") {
     return `🕐 Agora são: ${getCurrentTime()}`;
+  }
+
+  if (text === "/modelos") {
+    const providers = getProviderStatus();
+    return `🧠 **Provedores de IA Configurados:**\n\n${providers.join("\n")}\n\n` +
+      `Último provedor usado: **${getLastProvider()}**`;
   }
 
   // Salvar mensagem do usuário
@@ -60,7 +85,8 @@ export async function processMessage(userId: string, userName: string, text: str
   const pref = getUserPreference(userId);
   const prompt = SYSTEM_PROMPT
     .replace("{{TIME}}", getCurrentTime())
-    .replace("{{USER_NAME}}", pref?.name || userName || "amigo");
+    .replace("{{USER_NAME}}", pref?.name || userName || "amigo")
+    .replace("{{PROVIDER}}", getLastProvider());
 
   // Gerar resposta
   const response = await generateResponse(messages, prompt);

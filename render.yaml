@@ -11,3 +11,9 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: HF_API_KEY
+        sync: false
+      - key: COHERE_API_KEY
+        sync: false
