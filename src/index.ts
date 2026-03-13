@@ -1,5 +1,6 @@
 import "dotenv/config";
 import http from "http";
+import { initDatabase } from "./db/memory";
 import bot from "./telegram/bot";
 
 const PORT = parseInt(process.env.PORT || "10000");
@@ -29,8 +30,10 @@ server.listen(PORT, () => {
   console.log(`🌐 Health server on port ${PORT}`);
 });
 
-// Limpar webhook antigo antes de usar long polling
+// Inicializar banco e bot
 async function startBot() {
+  // Inicializar SQLite
+  await initDatabase();
   try {
     // Deletar webhook pra garantir que long polling funciona
     await bot.api.deleteWebhook({ drop_pending_updates: true });
