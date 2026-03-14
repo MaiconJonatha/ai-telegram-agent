@@ -282,35 +282,7 @@ export async function transcribeAudio(buffer: Buffer): Promise<string> {
 }
 
 export async function generateImage(prompt: string): Promise<Buffer | null> {
-  // 1. Gemini Imagen 3 (grátis com API key)
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      console.log(`[IMG/Gemini-Imagen] Gerando: ${prompt.substring(0, 50)}...`);
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${process.env.GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            instances: [{ prompt: prompt }],
-            parameters: { sampleCount: 1, aspectRatio: "1:1" },
-          }),
-        }
-      );
-      if (res.ok) {
-        const data = await res.json() as any;
-        const b64 = data.predictions?.[0]?.bytesBase64Encoded;
-        if (b64) {
-          console.log("[IMG/Gemini-Imagen] OK!");
-          return Buffer.from(b64, "base64");
-        }
-      }
-    } catch (e: any) {
-      console.log("[IMG/Gemini-Imagen] Erro:", e.message);
-    }
-  }
-
-  // 2. Pollinations.ai (grátis, sem chave, rápido)
+  // 1. Pollinations.ai (grátis, sem chave, rápido)
   try {
     console.log(`[IMG/Pollinations] Gerando: ${prompt.substring(0, 50)}...`);
     const encodedPrompt = encodeURIComponent(prompt + ", high quality, detailed");
@@ -405,7 +377,7 @@ export async function generateVideo(prompt: string): Promise<Buffer | null> {
 
     // 1. Iniciar geração
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-fast-generate-001:predictLongRunning?key=${GEMINI_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -488,7 +460,7 @@ export function getProviderStatus(): string[] {
   if (process.env.GROQ_API_KEY) providers.push("✅ Groq (Llama 3.3 70B, Llama 3.1 8B)");
   else providers.push("❌ Groq (sem GROQ_API_KEY)");
 
-  if (process.env.GEMINI_API_KEY) providers.push("✅ Google Gemini (Flash 2.0, Imagen 3, Veo 2 vídeo)");
+  if (process.env.GEMINI_API_KEY) providers.push("✅ Google Gemini (Flash 2.0, Veo 3.0 vídeo)");
   else providers.push("❌ Google Gemini (sem GEMINI_API_KEY)");
 
   if (process.env.HF_API_KEY) providers.push("✅ Hugging Face (Llama 70B, Mixtral, Phi-3, Whisper, SDXL)");
