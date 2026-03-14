@@ -1,6 +1,6 @@
 import { generateResponse, ChatMessage, getCurrentTime, getLastProvider, getProviderStatus } from "./tools";
 import { saveMessage, getHistory, getUserPreference, saveUserPreference, clearHistory } from "../db/memory";
-import { executeCoderTask, isGitHubConfigured } from "./coder";
+import { executeCoderTask, isGitHubConfigured, listRepos, createRepo } from "./coder";
 
 const SYSTEM_PROMPT = `Você é um Agente de IA avançado chamado "ArcanjoBot" 🤖⚡
 Você tem acesso a múltiplos provedores de IA gratuitos como fallback.
@@ -65,6 +65,27 @@ function isCodingRequest(text: string): boolean {
   return matches >= 2;
 }
 
+// Extrair nome do projeto de um pedido
+function extractProjectName(text: string): string {
+  const lower = text.toLowerCase();
+  // Tentar extrair nome após "app", "site", "projeto", "sistema"
+  const patterns = [
+    /(?:app|aplicativo|site|projeto|sistema|plataforma)\s+(?:de\s+|do\s+|da\s+|para\s+|tipo\s+)?(.+?)(?:\s+com|\s+usando|\s+que|\s+para|$)/i,
+    /cri(?:a|e|ar)\s+(?:um|uma)?\s*(.+?)(?:\s+com|\s+usando|\s+que|\s+para|$)/i,
+  ];
+  for (const p of patterns) {
+    const match = text.match(p);
+    if (match?.[1]) {
+      return match[1].trim()
+        .replace(/[^a-zA-Z0-9\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .substring(0, 30)
+        .toLowerCase() || "meu-projeto";
+    }
+  }
+  return "meu-projeto-" + Date.now().toString(36);
+}
+
 // Repo ativo por usuário (compartilhado com bot.ts via export)
 export const activeRepos: Record<string, string> = {};
 
@@ -123,22 +144,50 @@ export async function processMessage(userId: string, userName: string, text: str
 
   // Detectar se é pedido de programação
   if (isCodingRequest(text) && isGitHubConfigured()) {
-    const repo = activeRepos[userId];
-    if (repo) {
-      console.log(`[CODER] Detectado pedido de programação de ${userName}: ${text.substring(0, 50)}...`);
-      const result = await executeCoderTask(text, repo);
-      saveMessage(userId, "assistant", result);
-      return result;
-    } else {
-      // Parece programação mas não tem repo selecionado
-      const hint = "💡 Parece que você quer que eu programe algo! " +
-        "Selecione um repo primeiro:\n\n" +
-        "`/repos` - Ver seus repositórios\n" +
-        "`/repo usuario/repo` - Selecionar repo\n\n" +
-        "Depois é só pedir normalmente!";
-      saveMessage(userId, "assistant", hint);
-      return hint;
+    let repo = activeRepos[userId];
+
+    // Se não tem repo selecionado, tentar encontrar ou criar um
+    if (!repo) {
+      console.log(`[CODER] Sem repo ativo, tentando auto-selecionar...`);
+
+      // Extrair nome do projeto do pedido
+      const projectName = extractProjectName(text);
+
+      // Verificar se já existe um repo com esse nome
+      const repos = await listRepos();
+      const existing = repos.find(r => r.toLowerCase().includes(projectName.toLowerCase()));
+
+      if (existing) {
+        repo = existing;
+        activeRepos[userId] = repo;
+        console.log(`[CODER] Auto-selecionado repo existente: ${repo}`);
+      } else {
+        // Criar novo repo
+        console.log(`[CODER] Criando novo repo: ${projectName}`);
+        const result = await createRepo(projectName, `Projeto criado pelo ArcanjoBot: ${text.substring(0, 100)}`);
+        if (result.success && result.fullName) {
+          repo = result.fullName;
+          activeRepos[userId] = repo;
+          console.log(`[CODER] Novo repo criado: ${repo}`);
+        } else {
+          // Usar o primeiro repo disponível como fallback
+          if (repos.length > 0) {
+            repo = repos[0];
+            activeRepos[userId] = repo;
+            console.log(`[CODER] Fallback pro primeiro repo: ${repo}`);
+          } else {
+            const hint = "❌ Não consegui criar um repositório. Verifique seu GITHUB_TOKEN.";
+            saveMessage(userId, "assistant", hint);
+            return hint;
+          }
+        }
+      }
     }
+
+    console.log(`[CODER] Detectado pedido de programação de ${userName}: ${text.substring(0, 50)}...`);
+    const result = await executeCoderTask(text, repo);
+    saveMessage(userId, "assistant", result);
+    return result;
   }
 
   // Buscar histórico

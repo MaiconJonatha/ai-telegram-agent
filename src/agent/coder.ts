@@ -163,6 +163,26 @@ export async function createPR(
   }
 }
 
+export async function createRepo(name: string, description: string = ""): Promise<{ success: boolean; fullName?: string; error?: string }> {
+  try {
+    const res = await fetch(`${GITHUB_API}/user/repos`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        name,
+        description,
+        auto_init: true,
+        private: false,
+      }),
+    });
+    const data = await res.json() as any;
+    if (data.full_name) return { success: true, fullName: data.full_name };
+    return { success: false, error: data.message || "erro ao criar repo" };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
 // ============ AGENTE PROGRAMADOR ============
 
 const CODER_SYSTEM_PROMPT = `Você é um agente programador autônomo chamado ArcanjoBot 🤖⚡
