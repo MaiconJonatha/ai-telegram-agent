@@ -1,5 +1,5 @@
 import { Bot, Context } from "grammy";
-import { processMessage, activeRepos, getLastAgent } from "../agent/agent";
+import { processMessage, activeRepos, getLastAgent, setSendMessageCallback } from "../agent/agent";
 import { transcribeAudio, generateImage, generateVideo, searchImages } from "../agent/tools";
 import { generateFlowImage, generateFlowVideo } from "../agent/flow";
 import { listRepos, getRepoTree, readFile, executeCoderTask, isGitHubConfigured } from "../agent/coder";
@@ -322,6 +322,15 @@ bot.on("message:voice", async (ctx) => {
   } catch (error: any) {
     console.error(`[ERRO AUDIO] ${error.message}`);
     await ctx.reply("Erro ao processar áudio. Tente novamente.");
+  }
+});
+
+// Registrar callback pra debate entre IAs mandar mensagens intermediárias
+setSendMessageCallback(async (chatId: string, text: string) => {
+  try {
+    await bot.api.sendMessage(chatId, text, { parse_mode: "Markdown" });
+  } catch {
+    await bot.api.sendMessage(chatId, text).catch(() => {});
   }
 });
 

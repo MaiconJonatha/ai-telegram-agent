@@ -52,6 +52,44 @@ export interface ChatMessage {
 let lastProvider = "nenhum";
 export function getLastProvider(): string { return lastProvider; }
 
+// Gerar resposta com um provedor ESPECÍFICO (pra debates entre IAs)
+export async function generateWithProvider(
+  provider: string,
+  messages: ChatMessage[],
+  systemPrompt: string
+): Promise<{ text: string; name: string }> {
+  const fullMessages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    ...messages,
+  ];
+
+  const providers: Record<string, { client: any; model: string; name: string }> = {
+    groq: { client: groq, model: "llama-3.3-70b-versatile", name: "🦙 Llama (Groq)" },
+    gemini: { client: gemini, model: "gemini-2.0-flash", name: "💎 Gemini (Google)" },
+    deepseek: { client: deepseek, model: "deepseek-chat", name: "🐋 DeepSeek" },
+    cohere: { client: cohere, model: "command-r-plus", name: "🌊 Command R+ (Cohere)" },
+    openrouter: { client: openrouter, model: "google/gemma-3-27b-it:free", name: "🌐 Gemma (OpenRouter)" },
+  };
+
+  const p = providers[provider];
+  if (!p) throw new Error(`Provedor ${provider} não encontrado`);
+
+  try {
+    const response = await p.client.chat.completions.create({
+      model: p.model,
+      messages: fullMessages,
+      max_tokens: 512,
+      temperature: 0.9,
+    });
+    const text = response.choices[0]?.message?.content;
+    if (text) return { text, name: p.name };
+  } catch (e: any) {
+    console.log(`[${p.name}] Erro:`, e.message);
+  }
+
+  throw new Error(`${p.name} falhou`);
+}
+
 export async function generateResponse(
   messages: ChatMessage[],
   systemPrompt: string

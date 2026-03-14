@@ -1,4 +1,4 @@
-import { generateResponse, ChatMessage, getCurrentTime, getLastProvider, getProviderStatus } from "./tools";
+import { generateResponse, generateWithProvider, ChatMessage, getCurrentTime, getLastProvider, getProviderStatus } from "./tools";
 import { saveMessage, getHistory, getUserPreference, saveUserPreference, clearHistory } from "../db/memory";
 import { executeCoderTask, isGitHubConfigured, listRepos, createRepo } from "./coder";
 
@@ -219,6 +219,13 @@ export async function processMessage(userId: string, userName: string, text: str
       : "Nenhuma interação registrada ainda.";
   }
 
+  // ========== DEBATE ENTRE IAS ==========
+  if (text.startsWith("/debate ")) {
+    const topic = text.replace("/debate ", "").trim();
+    if (!topic) return "Use: /debate [tema]\nEx: /debate qual a melhor linguagem de programação?";
+    return await aiDebate(topic, userId, userName);
+  }
+
   // Salvar mensagem do usuário
   saveMessage(userId, "user", text);
 
@@ -306,4 +313,83 @@ export async function processMessage(userId: string, userName: string, text: str
   saveMessage(userId, "assistant", response);
 
   return response;
+}
+
+// ============ DEBATE ENTRE IAS ============
+
+// Callback pra enviar mensagens intermediárias no Telegram
+let sendMessageCallback: ((chatId: string, text: string) => Promise<void>) | null = null;
+export function setSendMessageCallback(cb: (chatId: string, text: string) => Promise<void>) {
+  sendMessageCallback = cb;
+}
+
+async function aiDebate(topic: string, userId: string, userName: string): Promise<string> {
+  const providers = ["groq", "deepseek", "gemini", "cohere", "openrouter"];
+  const available: string[] = [];
+
+  // Filtrar provedores disponíveis
+  if (process.env.GROQ_API_KEY) available.push("groq");
+  if (process.env.DEEPSEEK_API_KEY) available.push("deepseek");
+  if (process.env.GEMINI_API_KEY) available.push("gemini");
+  if (process.env.COHERE_API_KEY) available.push("cohere");
+  if (process.env.OPENROUTER_API_KEY) available.push("openrouter");
+
+  if (available.length < 2) {
+    return "❌ Preciso de pelo menos 2 provedores de IA configurados pra um debate.";
+  }
+
+  // Escolher 2 IAs aleatórias
+  const shuffled = available.sort(() => Math.random() - 0.5);
+  const ia1 = shuffled[0];
+  const ia2 = shuffled[1];
+
+  const debatePrompt = (iaName: string, otherName: string) =>
+    `Você é ${iaName} participando de um debate amigável com ${otherName} sobre: "${topic}".
+Regras:
+- Responda em português do Brasil
+- Dê sua opinião honesta, pode discordar
+- Seja conciso (máx 3 parágrafos)
+- Seja respeitoso mas firme nas opiniões
+- Use argumentos concretos
+- Pode usar humor
+- NÃO comece com "Olá" ou cumprimentos, vá direto ao ponto`;
+
+  const conversation: ChatMessage[] = [];
+  const rounds = 3;
+  let fullDebate = `🎙️ **DEBATE: ${topic}**\n\n`;
+
+  if (sendMessageCallback) {
+    await sendMessageCallback(userId, `🎙️ **DEBATE: ${topic}**\n\nParticipantes prontos... Iniciando!`);
+  }
+
+  for (let round = 0; round < rounds; round++) {
+    // IA 1 fala
+    try {
+      const r1 = await generateWithProvider(ia1, conversation, debatePrompt(ia1, ia2));
+      conversation.push({ role: "user", content: `[${r1.name}]: ${r1.text}` });
+      const msg1 = `${r1.name}:\n${r1.text}`;
+      fullDebate += msg1 + "\n\n---\n\n";
+      if (sendMessageCallback) await sendMessageCallback(userId, msg1);
+    } catch (e: any) {
+      console.log(`[DEBATE] ${ia1} falhou:`, e.message);
+      fullDebate += `⚠️ ${ia1} não respondeu nessa rodada\n\n`;
+    }
+
+    // IA 2 responde
+    try {
+      const r2 = await generateWithProvider(ia2, conversation, debatePrompt(ia2, ia1));
+      conversation.push({ role: "user", content: `[${r2.name}]: ${r2.text}` });
+      const msg2 = `${r2.name}:\n${r2.text}`;
+      fullDebate += msg2 + "\n\n---\n\n";
+      if (sendMessageCallback) await sendMessageCallback(userId, msg2);
+    } catch (e: any) {
+      console.log(`[DEBATE] ${ia2} falhou:`, e.message);
+      fullDebate += `⚠️ ${ia2} não respondeu nessa rodada\n\n`;
+    }
+  }
+
+  fullDebate += `🏁 **Fim do debate!** (${rounds} rodadas)`;
+  saveMessage(userId, "assistant", fullDebate);
+
+  return `🏁 **Debate finalizado!** Foram ${rounds} rodadas entre as IAs.`;
 }
