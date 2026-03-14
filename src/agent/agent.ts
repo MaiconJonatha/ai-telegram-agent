@@ -37,7 +37,8 @@ Você é amigável, inteligente e prestativo. Seu tom é casual mas respeitoso.`
 
 // Detectar se a mensagem é um pedido de programação
 const CODING_KEYWORDS = [
-  "cria um", "crie um", "criar um", "faz um", "faça um", "fazer um",
+  "cria um", "crie um", "criar um", "cria uma", "crie uma",
+  "faz um", "faça um", "fazer um", "faz uma", "faça uma",
   "programa", "código", "codigo", "script", "função", "funcao",
   "adiciona", "adicione", "implementa", "implemente",
   "corrige", "corrija", "fix", "bug",
@@ -49,20 +50,27 @@ const CODING_KEYWORDS = [
   "deploy", "dockerfile", "docker",
   "no repo", "no repositório", "no repositorio",
   "commit", "push", "pull request",
+  "app", "aplicativo", "site", "sistema", "plataforma",
+  "superapp", "webapp", "web app",
+  "tiktok", "instagram", "clone",
 ];
 
 function isCodingRequest(text: string): boolean {
   const lower = text.toLowerCase();
-  // Precisa ter pelo menos 2 keywords OU menção explícita a repo/arquivo
   let matches = 0;
+  const matched: string[] = [];
   for (const kw of CODING_KEYWORDS) {
-    if (lower.includes(kw)) matches++;
+    if (lower.includes(kw)) { matches++; matched.push(kw); }
   }
-  // Menção explícita a programar no repo
+  // Menção explícita a programar
   if (lower.includes("no repo") || lower.includes("no meu repo")) return true;
   if (lower.includes("programa pra mim") || lower.includes("programa isso")) return true;
   if (lower.includes("cria no github") || lower.includes("faz no github")) return true;
-  return matches >= 2;
+  // "cria" + algo = programação
+  const hasCreationVerb = matched.some(m => m.startsWith("cria") || m.startsWith("crie") || m.startsWith("faz") || m.startsWith("faça") || m.startsWith("fazer"));
+  if (hasCreationVerb && matches >= 2) return true;
+  // 3+ keywords = com certeza é código
+  return matches >= 3;
 }
 
 // Extrair nome do projeto de um pedido
