@@ -41,6 +41,40 @@ bot.on("message:text", async (ctx) => {
   console.log(`[${new Date().toISOString()}] ${userName} (${userId}): ${text}`);
 
   try {
+    // ========== POSTAR NO SUPERFLOW TV ==========
+    const flowMatch = text.match(/^\/flow\s+(.+)/i) || text.match(/^\/postar\s+(.+)/i);
+    if (flowMatch) {
+      const prompt = flowMatch[1];
+      await ctx.reply("🎬 Gerando conteúdo pro SuperFlow TV...");
+      await ctx.replyWithChatAction("upload_photo");
+
+      // Gerar imagem
+      const imgBuffer = await generateImage(prompt);
+      if (!imgBuffer) {
+        await ctx.reply("❌ Não consegui gerar a imagem.");
+        return;
+      }
+
+      // Upload pro GitHub (repo tiktok)
+      const { createOrUpdateFile } = await import("../agent/coder");
+      const fileName = `content/img-${Date.now()}.png`;
+      const b64 = imgBuffer.toString("base64");
+      const uploadResult = await createOrUpdateFile(
+        "MaiconJonatha/tiktok",
+        fileName,
+        imgBuffer.toString("binary"),
+        `Novo conteúdo: ${prompt.substring(0, 50)}`
+      );
+
+      // Enviar imagem no Telegram
+      await ctx.replyWithPhoto(new InputFile(imgBuffer, "superflow.png"), {
+        caption: `🎬 **SuperFlow TV**\n\n${prompt}\n\n🌐 https://maiconjonatha.github.io/tiktok/`,
+        parse_mode: "Markdown"
+      });
+
+      return;
+    }
+
     // ========== BUSCAR IMAGENS NO GOOGLE ==========
     const searchMatch = text.match(/^\/buscar\s+(.+)/i) || text.match(/^\/google\s+(.+)/i);
     if (searchMatch) {
