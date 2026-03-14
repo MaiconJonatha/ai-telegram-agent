@@ -2,7 +2,6 @@ import "dotenv/config";
 import http from "http";
 import { initDatabase } from "./db/memory";
 import bot from "./telegram/bot";
-import { webhookCallback } from "grammy";
 
 const PORT = parseInt(process.env.PORT || "10000");
 
@@ -11,64 +10,17 @@ console.log(`🧠 LLM: Groq → Gemini → HuggingFace → Cohere → DeepSeek �
 console.log(`⏰ ${new Date().toLocaleString("pt-BR")}`);
 console.log("---");
 
-const handleUpdate = webhookCallback(bot, "http");
-
-const server = http.createServer(async (req, res) => {
-  if (req.url === "/webhook" && req.method === "POST") {
-    try {
-      await handleUpdate(req, res);
-    } catch (e: any) {
-      console.error("❌ Webhook error:", e.message);
-      res.writeHead(200);
-      res.end();
-    }
-  } else {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "online", mode: "webhook", uptime: process.uptime() }));
-  }
+// Health check server (mantém Render ativo)
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ status: "online", uptime: process.uptime() }));
 });
 
-async function start() {
-  await initDatabase();
-
-  const WEBHOOK_URL = process.env.RENDER_EXTERNAL_URL
-    ? `${process.env.RENDER_EXTERNAL_URL}/webhook`
-    : `https://arcanjobot.onrender.com/webhook`;
-
-  // Configurar webhook via fetch direto (mais confiável que grammy)
-  console.log(`📡 Configurando webhook: ${WEBHOOK_URL}`);
-  try {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: WEBHOOK_URL,
-        allowed_updates: ["message", "callback_query"],
-      }),
-    });
-    const data = await res.json() as any;
-    console.log("📡 setWebhook result:", JSON.stringify(data));
-
-    // Verificar
-    const info = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`);
-    const infoData = await info.json() as any;
-    console.log("📡 Webhook URL:", infoData.result?.url || "VAZIO");
-  } catch (e: any) {
-    console.error("❌ Webhook setup error:", e.message);
-  }
-
-  server.listen(PORT, () => {
-    console.log(`🌐 Server on port ${PORT}`);
-    console.log("✅ Bot está online e pronto!");
-  });
-}
-
-start().catch((e) => {
-  console.error("❌ Erro fatal:", e.message);
-  process.exit(1);
+server.listen(PORT, () => {
+  console.log(`🌐 Health server on port ${PORT}`);
 });
 
+// Catch all errors pra não crashar
 bot.catch((err) => {
   console.error("❌ Bot error:", err.message);
 });
@@ -81,7 +33,49 @@ process.on("unhandledRejection", (e: any) => {
   console.error("❌ Unhandled:", e?.message || e);
 });
 
+// Start bot com retry
+async function startBot() {
+  await initDatabase();
+
+  // Limpar webhook
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  console.log("🔄 Limpando webhook...");
+  await fetch(`https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=true`);
+
+  // Esperar pra qualquer instância antiga morrer
+  console.log("⏳ Aguardando 5s...");
+  await new Promise(r => setTimeout(r, 5000));
+
+  // Iniciar polling com retry
+  async function poll() {
+    try {
+      console.log("📡 Iniciando Long Polling...");
+      await bot.start({
+        onStart: (info) => {
+          console.log(`✅ Bot @${info.username} está online!`);
+        },
+      });
+    } catch (e: any) {
+      if (e.message?.includes("409") || e.message?.includes("Conflict")) {
+        console.log("⚠️ Conflito detectado, aguardando 10s...");
+        await new Promise(r => setTimeout(r, 10000));
+        await poll();
+      } else {
+        console.error("❌ Polling erro:", e.message);
+        console.log("🔄 Retry em 15s...");
+        await new Promise(r => setTimeout(r, 15000));
+        await poll();
+      }
+    }
+  }
+
+  await poll();
+}
+
+startBot();
+
 process.on("SIGTERM", () => {
+  bot.stop();
   server.close();
   process.exit(0);
 });
