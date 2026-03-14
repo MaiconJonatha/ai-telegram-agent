@@ -30,7 +30,18 @@ const server = http.createServer(async (req, res) => {
 
 async function start() {
   await initDatabase();
-  console.log("📡 Modo: Webhook");
+
+  const WEBHOOK_URL = process.env.RENDER_EXTERNAL_URL
+    ? `${process.env.RENDER_EXTERNAL_URL}/webhook`
+    : `https://arcanjobot.onrender.com/webhook`;
+
+  // Sempre configurar webhook no startup (Render free tier pode dormir e resetar)
+  console.log(`📡 Configurando webhook: ${WEBHOOK_URL}`);
+  await bot.api.setWebhook(WEBHOOK_URL, {
+    drop_pending_updates: false,
+    allowed_updates: ["message", "callback_query"],
+  });
+  console.log("✅ Webhook configurado!");
 
   server.listen(PORT, () => {
     console.log(`🌐 Server on port ${PORT}`);
