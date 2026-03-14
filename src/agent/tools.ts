@@ -282,6 +282,19 @@ export async function transcribeAudio(buffer: Buffer): Promise<string> {
 }
 
 export async function generateImage(prompt: string): Promise<Buffer | null> {
+  // 0. Google Flow via Playwright (labs.google/fx/tools/flow)
+  try {
+    const { generateFlowImage } = await import("./flow");
+    console.log(`[IMG/Flow] Tentando Google Flow...`);
+    const flowResult = await generateFlowImage(prompt);
+    if (flowResult && flowResult.length > 1000) {
+      console.log("[IMG/Flow] OK!");
+      return flowResult;
+    }
+  } catch (e: any) {
+    console.log("[IMG/Flow] Erro:", e.message);
+  }
+
   // 1. Gemini 2.5 Flash Image (grátis, gera imagens nativas)
   if (process.env.GEMINI_API_KEY) {
     try {
@@ -395,6 +408,19 @@ export async function generateImage(prompt: string): Promise<Buffer | null> {
 }
 
 export async function generateVideo(prompt: string): Promise<Buffer | null> {
+  // 0. Google Flow via Playwright (labs.google/fx/tools/flow)
+  try {
+    const { generateFlowVideo } = await import("./flow");
+    console.log(`[VID/Flow] Tentando Google Flow...`);
+    const flowResult = await generateFlowVideo(prompt);
+    if (flowResult && flowResult.length > 1000) {
+      console.log("[VID/Flow] OK!");
+      return flowResult;
+    }
+  } catch (e: any) {
+    console.log("[VID/Flow] Erro:", e.message);
+  }
+
   const GEMINI_KEY = process.env.GEMINI_API_KEY;
   if (!GEMINI_KEY) {
     console.log("[VID] Sem GEMINI_API_KEY");

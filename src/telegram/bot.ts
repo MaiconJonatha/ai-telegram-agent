@@ -1,6 +1,7 @@
 import { Bot, Context } from "grammy";
 import { processMessage, activeRepos, getLastAgent } from "../agent/agent";
 import { transcribeAudio, generateImage, generateVideo, searchImages } from "../agent/tools";
+import { generateFlowImage, generateFlowVideo } from "../agent/flow";
 import { listRepos, getRepoTree, readFile, executeCoderTask, isGitHubConfigured } from "../agent/coder";
 import { InputFile } from "grammy";
 
@@ -41,6 +42,40 @@ bot.on("message:text", async (ctx) => {
   console.log(`[${new Date().toISOString()}] ${userName} (${userId}): ${text}`);
 
   try {
+    // ========== GOOGLE FLOW - IMAGEM ==========
+    const flowImgMatch = text.match(/^\/flowimg\s+(.+)/i);
+    if (flowImgMatch) {
+      const prompt = flowImgMatch[1];
+      await ctx.reply("🎨 Gerando imagem via Google Flow... (pode levar ~30s)");
+      await ctx.replyWithChatAction("upload_photo");
+      const imgBuffer = await generateFlowImage(prompt);
+      if (imgBuffer) {
+        await ctx.replyWithPhoto(new InputFile(imgBuffer, "flow-image.png"), {
+          caption: `🎨 Google Flow\n\n${prompt}`,
+        });
+      } else {
+        await ctx.reply("❌ Não consegui gerar a imagem via Flow. Tente /img para usar outros provedores.");
+      }
+      return;
+    }
+
+    // ========== GOOGLE FLOW - VIDEO ==========
+    const flowVidMatch = text.match(/^\/flowvid\s+(.+)/i);
+    if (flowVidMatch) {
+      const prompt = flowVidMatch[1];
+      await ctx.reply("🎬 Gerando vídeo via Google Flow... (pode levar ~1-3 min)");
+      await ctx.replyWithChatAction("upload_video");
+      const vidBuffer = await generateFlowVideo(prompt);
+      if (vidBuffer) {
+        await ctx.replyWithVideo(new InputFile(vidBuffer, "flow-video.mp4"), {
+          caption: `🎬 Google Flow\n\n${prompt}`,
+        });
+      } else {
+        await ctx.reply("❌ Não consegui gerar o vídeo via Flow. Tente /video para usar Gemini Veo direto.");
+      }
+      return;
+    }
+
     // ========== POSTAR NO SUPERFLOW TV ==========
     const flowMatch = text.match(/^\/flow\s+(.+)/i) || text.match(/^\/postar\s+(.+)/i);
     if (flowMatch) {
