@@ -9,7 +9,7 @@ function headers() {
     Authorization: `Bearer ${GITHUB_TOKEN()}`,
     Accept: "application/vnd.github.v3+json",
     "Content-Type": "application/json",
-    "User-Agent": "OpencrawsBot",
+    "User-Agent": "Opencrawsbuties",
   };
 }
 
@@ -74,7 +74,7 @@ export async function createOrUpdateFile(
     const body: any = {
       message,
       content: Buffer.from(content).toString("base64"),
-      committer: { name: "OpencrawsBot", email: "opencrawsbot@users.noreply.github.com" },
+      committer: { name: "Opencrawsbuties", email: "opencrawsbot@users.noreply.github.com" },
     };
     if (sha) body.sha = sha;
 
@@ -110,7 +110,7 @@ export async function deleteFile(
       body: JSON.stringify({
         message,
         sha: data.sha,
-        committer: { name: "OpencrawsBot", email: "opencrawsbot@users.noreply.github.com" },
+        committer: { name: "Opencrawsbuties", email: "opencrawsbot@users.noreply.github.com" },
       }),
     });
     return res.ok ? { success: true } : { success: false, error: "falha ao deletar" };
@@ -185,7 +185,7 @@ export async function createRepo(name: string, description: string = ""): Promis
 
 // ============ AGENTE PROGRAMADOR ============
 
-const CODER_SYSTEM_PROMPT = `Você é um agente programador autônomo chamado OpencrawsBot 🤖⚡
+const CODER_SYSTEM_PROMPT = `Você é um agente programador autônomo chamado Opencrawsbuties 🤖⚡
 Você recebe tarefas de programação e executa usando a API do GitHub.
 
 Quando receber uma tarefa, você deve:
@@ -315,7 +315,7 @@ export async function executeCoderTask(
               action.repo,
               action.path,
               action.content,
-              action.message || `OpencrawsBot: ${action.action} ${action.path}`
+              action.message || `Opencrawsbuties: ${action.action} ${action.path}`
             );
             if (res.success) {
               results.push(`✅ ${action.action === "create_file" ? "Criado" : "Atualizado"}: ${action.path}`);
@@ -329,7 +329,7 @@ export async function executeCoderTask(
             const res = await deleteFile(
               action.repo,
               action.path,
-              action.message || `OpencrawsBot: deletar ${action.path}`
+              action.message || `Opencrawsbuties: deletar ${action.path}`
             );
             results.push(res.success ? `🗑️ Deletado: ${action.path}` : `❌ Erro: ${res.error}`);
             break;
@@ -369,7 +369,7 @@ export async function executeCoderTask(
 
     // Montar resposta final
     const output = [
-      `🤖 **OpencrawsBot Programador**`,
+      `🤖 **Opencrawsbuties Programador**`,
       `📋 Tarefa: ${task}`,
       `📦 Repo: ${repo}`,
       ``,
@@ -382,7 +382,7 @@ export async function executeCoderTask(
     return output.join("\n");
   }
 
-  return `🤖 **OpencrawsBot Programador**\n\n${results.join("\n")}\n\n⚠️ Máximo de iterações atingido.`;
+  return `🤖 **Opencrawsbuties Programador**\n\n${results.join("\n")}\n\n⚠️ Máximo de iterações atingido.`;
 }
 
 // Verificar se GitHub está configurado
