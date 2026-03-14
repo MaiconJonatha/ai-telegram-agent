@@ -5,7 +5,7 @@ import bot from "./telegram/bot";
 
 const PORT = parseInt(process.env.PORT || "10000");
 
-console.log("🚀 Iniciando ArcanjoBot...");
+console.log("🚀 Iniciando OpencrawsBot...");
 console.log(`⏰ ${new Date().toLocaleString("pt-BR")}`);
 
 // Health check server

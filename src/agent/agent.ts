@@ -70,7 +70,7 @@ function fallbackRoute(text: string): AgentCategory {
 
 // ============ PROMPTS DOS AGENTES ============
 
-const GENERAL_PROMPT = `Você é o ArcanjoBot 🤖⚡, um agente de IA avançado.
+const GENERAL_PROMPT = `Você é o OpencrawsBot 🤖⚡, um agente de IA avançado.
 
 Suas capacidades:
 - Conversar de forma inteligente e natural em português
@@ -89,7 +89,7 @@ Regras:
 
 Você é amigável, inteligente e prestativo. Tom casual mas respeitoso.`;
 
-const RESEARCH_PROMPT = `Você é o ArcanjoBot 🤖⚡ no modo PESQUISADOR.
+const RESEARCH_PROMPT = `Você é o OpencrawsBot 🤖⚡ no modo PESQUISADOR.
 
 Seu papel é responder perguntas de forma completa, precisa e educativa.
 Você é um especialista em explicar conceitos complexos de forma simples.
@@ -103,7 +103,7 @@ Regras:
 - Hora atual: {{TIME}}
 - Nome do usuário: {{USER_NAME}}`;
 
-const CRITIC_PROMPT = `Você é o ArcanjoBot 🤖⚡ no modo REVISOR DE CÓDIGO.
+const CRITIC_PROMPT = `Você é o OpencrawsBot 🤖⚡ no modo REVISOR DE CÓDIGO.
 
 Seu papel é analisar código com olho crítico e construtivo.
 Você identifica: bugs, vulnerabilidades, bad practices, oportunidades de melhoria.
@@ -146,7 +146,7 @@ export async function processMessage(userId: string, userName: string, text: str
   if (text === "/start") {
     saveUserPreference(userId, userName, "");
     return `Olá ${userName}! 👋\n\n` +
-      `Eu sou o **ArcanjoBot** 🤖⚡\n` +
+      `Eu sou o **OpencrawsBot** 🤖⚡\n` +
       `Um agente de IA multi-agente que roda 24/7!\n\n` +
       `**Agentes disponíveis:**\n` +
       `🧠 **Geral** - Conversa, ideias, ajuda\n` +
@@ -173,7 +173,7 @@ export async function processMessage(userId: string, userName: string, text: str
   }
 
   if (text === "/sobre") {
-    return "🤖 **ArcanjoBot** - Sistema Multi-Agente 24/7\n\n" +
+    return "🤖 **OpencrawsBot** - Sistema Multi-Agente 24/7\n\n" +
       "**Agentes:**\n" +
       "• 🧠 General - Conversa inteligente\n" +
       "• 💻 Coder - Programação autônoma no GitHub\n" +
@@ -229,7 +229,7 @@ export async function processMessage(userId: string, userName: string, text: str
         console.log(`[CODER] Auto-selecionado repo existente: ${repo}`);
       } else {
         console.log(`[CODER] Criando novo repo: ${projectName}`);
-        const result = await createRepo(projectName, `Projeto criado pelo ArcanjoBot: ${text.substring(0, 100)}`);
+        const result = await createRepo(projectName, `Projeto criado pelo OpencrawsBot: ${text.substring(0, 100)}`);
         if (result.success && result.fullName) {
           repo = result.fullName;
           activeRepos[userId] = repo;
