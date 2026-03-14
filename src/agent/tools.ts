@@ -282,7 +282,36 @@ export async function transcribeAudio(buffer: Buffer): Promise<string> {
 }
 
 export async function generateImage(prompt: string): Promise<Buffer | null> {
-  // 1. Pollinations.ai (grátis, sem chave, rápido)
+  // 1. Gemini 2.5 Flash Image (grátis, gera imagens nativas)
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      console.log(`[IMG/Gemini] Gerando: ${prompt.substring(0, 50)}...`);
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `Generate an image: ${prompt}` }] }],
+            generationConfig: { responseModalities: ["IMAGE"] },
+          }),
+        }
+      );
+      if (res.ok) {
+        const data = await res.json() as any;
+        const parts = data.candidates?.[0]?.content?.parts || [];
+        const imgPart = parts.find((p: any) => p.inlineData);
+        if (imgPart?.inlineData?.data) {
+          console.log("[IMG/Gemini] OK!");
+          return Buffer.from(imgPart.inlineData.data, "base64");
+        }
+      }
+    } catch (e: any) {
+      console.log("[IMG/Gemini] Erro:", e.message);
+    }
+  }
+
+  // 2. Pollinations.ai (grátis, sem chave, rápido)
   try {
     console.log(`[IMG/Pollinations] Gerando: ${prompt.substring(0, 50)}...`);
     const encodedPrompt = encodeURIComponent(prompt + ", high quality, detailed");
@@ -385,7 +414,7 @@ export async function generateVideo(prompt: string): Promise<Buffer | null> {
           instances: [{ prompt: prompt }],
           parameters: {
             aspectRatio: "16:9",
-            durationSeconds: 5,
+            durationSeconds: 8,
             personGeneration: "allow_adult",
           },
         }),
