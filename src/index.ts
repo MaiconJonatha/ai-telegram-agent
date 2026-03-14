@@ -35,13 +35,28 @@ async function start() {
     ? `${process.env.RENDER_EXTERNAL_URL}/webhook`
     : `https://arcanjobot.onrender.com/webhook`;
 
-  // Sempre configurar webhook no startup (Render free tier pode dormir e resetar)
+  // Configurar webhook via fetch direto (mais confiável que grammy)
   console.log(`📡 Configurando webhook: ${WEBHOOK_URL}`);
-  await bot.api.setWebhook(WEBHOOK_URL, {
-    drop_pending_updates: false,
-    allowed_updates: ["message", "callback_query"],
-  });
-  console.log("✅ Webhook configurado!");
+  try {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: WEBHOOK_URL,
+        allowed_updates: ["message", "callback_query"],
+      }),
+    });
+    const data = await res.json() as any;
+    console.log("📡 setWebhook result:", JSON.stringify(data));
+
+    // Verificar
+    const info = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`);
+    const infoData = await info.json() as any;
+    console.log("📡 Webhook URL:", infoData.result?.url || "VAZIO");
+  } catch (e: any) {
+    console.error("❌ Webhook setup error:", e.message);
+  }
 
   server.listen(PORT, () => {
     console.log(`🌐 Server on port ${PORT}`);
