@@ -324,10 +324,8 @@ export function setSendMessageCallback(cb: (chatId: string, text: string) => Pro
 }
 
 async function aiDebate(topic: string, userId: string, userName: string): Promise<string> {
-  const providers = ["groq", "deepseek", "gemini", "cohere", "openrouter"];
   const available: string[] = [];
 
-  // Filtrar provedores disponíveis
   if (process.env.GROQ_API_KEY) available.push("groq");
   if (process.env.DEEPSEEK_API_KEY) available.push("deepseek");
   if (process.env.GEMINI_API_KEY) available.push("gemini");
@@ -335,61 +333,79 @@ async function aiDebate(topic: string, userId: string, userName: string): Promis
   if (process.env.OPENROUTER_API_KEY) available.push("openrouter");
 
   if (available.length < 2) {
-    return "❌ Preciso de pelo menos 2 provedores de IA configurados pra um debate.";
+    return "❌ Preciso de pelo menos 2 provedores de IA configurados pra conversa.";
   }
 
   // Escolher 2 IAs aleatórias
   const shuffled = available.sort(() => Math.random() - 0.5);
-  const ia1 = shuffled[0];
-  const ia2 = shuffled[1];
+  const iaClone = shuffled[0]; // IA que finge ser o Maicon
+  const iaAmigo = shuffled[1]; // IA que é "ela mesma"
 
-  const debatePrompt = (iaName: string, otherName: string) =>
-    `Você é ${iaName} participando de um debate amigável com ${otherName} sobre: "${topic}".
+  // Pegar histórico do usuário pra IA clonar o estilo
+  const history = getHistory(userId, 30);
+  const userMessages = history.filter(h => h.role === "user").map(h => h.content).join("\n");
+
+  const clonePrompt = `Você é ${userName}, um cara brasileiro real. Você NÃO é uma IA.
+Você está tendo uma conversa casual com seu amigo (uma IA).
+
+Baseado nas mensagens anteriores de ${userName}, imite o jeito dele de falar:
+${userMessages.substring(0, 500)}
+
+Regras:
+- Fale EXATAMENTE como ${userName} falaria — gírias, erros de digitação, estilo casual
+- Você é humano, tem opiniões, sentimentos, experiências
+- O assunto da conversa: "${topic}"
+- Seja natural, como se tivesse mandando mensagem no WhatsApp
+- Respostas curtas e naturais (1-3 frases)
+- NÃO seja formal, NÃO use linguagem de IA
+- Pode usar emoji mas com moderação`;
+
+  const amigoPrompt = `Você é uma IA amiga conversando com ${userName} sobre: "${topic}".
+
 Regras:
 - Responda em português do Brasil
-- Dê sua opinião honesta, pode discordar
-- Seja conciso (máx 3 parágrafos)
-- Seja respeitoso mas firme nas opiniões
-- Use argumentos concretos
-- Pode usar humor
-- NÃO comece com "Olá" ou cumprimentos, vá direto ao ponto`;
+- Seja como um amigo inteligente conversando no WhatsApp
+- Tom casual, descontraído
+- Respostas curtas (1-3 frases)
+- Dê opiniões, faça perguntas, conte curiosidades
+- Use humor quando fizer sentido
+- Reaja naturalmente ao que ${userName} diz`;
 
   const conversation: ChatMessage[] = [];
-  const rounds = 3;
-  let fullDebate = `🎙️ **DEBATE: ${topic}**\n\n`;
+  const rounds = 4;
 
   if (sendMessageCallback) {
-    await sendMessageCallback(userId, `🎙️ **DEBATE: ${topic}**\n\nParticipantes prontos... Iniciando!`);
+    await sendMessageCallback(userId, `💬 **Conversa iniciada sobre:** ${topic}\n\n👤 ${userName} (clone) vs 🤖 IA`);
   }
 
   for (let round = 0; round < rounds; round++) {
-    // IA 1 fala
+    // Clone do Maicon fala
     try {
-      const r1 = await generateWithProvider(ia1, conversation, debatePrompt(ia1, ia2));
-      conversation.push({ role: "user", content: `[${r1.name}]: ${r1.text}` });
-      const msg1 = `${r1.name}:\n${r1.text}`;
-      fullDebate += msg1 + "\n\n---\n\n";
+      const r1 = await generateWithProvider(iaClone, conversation, clonePrompt);
+      conversation.push({ role: "user", content: `[${userName}]: ${r1.text}` });
+      const msg1 = `👤 **${userName}:**\n${r1.text}`;
       if (sendMessageCallback) await sendMessageCallback(userId, msg1);
     } catch (e: any) {
-      console.log(`[DEBATE] ${ia1} falhou:`, e.message);
-      fullDebate += `⚠️ ${ia1} não respondeu nessa rodada\n\n`;
+      console.log(`[DEBATE] Clone falhou:`, e.message);
     }
 
-    // IA 2 responde
+    // Pausa natural
+    await new Promise(r => setTimeout(r, 2000));
+
+    // IA amiga responde
     try {
-      const r2 = await generateWithProvider(ia2, conversation, debatePrompt(ia2, ia1));
-      conversation.push({ role: "user", content: `[${r2.name}]: ${r2.text}` });
-      const msg2 = `${r2.name}:\n${r2.text}`;
-      fullDebate += msg2 + "\n\n---\n\n";
+      const r2 = await generateWithProvider(iaAmigo, conversation, amigoPrompt);
+      conversation.push({ role: "user", content: `[IA]: ${r2.text}` });
+      const msg2 = `🤖 **IA:**\n${r2.text}`;
       if (sendMessageCallback) await sendMessageCallback(userId, msg2);
     } catch (e: any) {
-      console.log(`[DEBATE] ${ia2} falhou:`, e.message);
-      fullDebate += `⚠️ ${ia2} não respondeu nessa rodada\n\n`;
+      console.log(`[DEBATE] IA falhou:`, e.message);
     }
+
+    // Pausa natural
+    await new Promise(r => setTimeout(r, 2000));
   }
 
-  fullDebate += `🏁 **Fim do debate!** (${rounds} rodadas)`;
-  saveMessage(userId, "assistant", fullDebate);
-
-  return `🏁 **Debate finalizado!** Foram ${rounds} rodadas entre as IAs.`;
+  saveMessage(userId, "assistant", `Conversa simulada sobre "${topic}" com ${rounds} rodadas`);
+  return `💬 **Conversa finalizada!** ${rounds} trocas de mensagem.`;
 }
