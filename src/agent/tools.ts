@@ -320,17 +320,32 @@ export async function transcribeAudio(buffer: Buffer): Promise<string> {
 }
 
 export async function generateImage(prompt: string): Promise<Buffer | null> {
-  // 0. Google Flow via Playwright (labs.google/fx/tools/flow)
-  try {
-    const { generateFlowImage } = await import("./flow");
-    console.log(`[IMG/Flow] Tentando Google Flow...`);
-    const flowResult = await generateFlowImage(prompt);
-    if (flowResult && flowResult.length > 1000) {
-      console.log("[IMG/Flow] OK!");
-      return flowResult;
+  // 0. ImageFX Server Local (via Cloudflare Tunnel)
+  if (process.env.IMAGEFX_SERVER_URL) {
+    try {
+      console.log(`[IMG/ImageFX] Gerando via servidor local: ${prompt.substring(0, 50)}...`);
+      const res = await fetch(`${process.env.IMAGEFX_SERVER_URL}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt,
+          token: process.env.IMAGEFX_TOKEN || "opencrawsbuties2026",
+        }),
+        signal: AbortSignal.timeout(120000),
+      });
+      if (res.ok) {
+        const data = await res.json() as any;
+        if (data.images?.[0]) {
+          const buf = Buffer.from(data.images[0], "base64");
+          if (buf.length > 1000) {
+            console.log(`[IMG/ImageFX] OK! ${buf.length} bytes`);
+            return buf;
+          }
+        }
+      }
+    } catch (e: any) {
+      console.log("[IMG/ImageFX] Erro:", e.message);
     }
-  } catch (e: any) {
-    console.log("[IMG/Flow] Erro:", e.message);
   }
 
   // 1. Gemini 2.5 Flash Image (grátis, gera imagens nativas)
