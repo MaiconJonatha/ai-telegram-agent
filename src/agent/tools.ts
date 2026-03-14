@@ -479,6 +479,69 @@ export async function generateVideo(prompt: string): Promise<Buffer | null> {
   }
 }
 
+// Buscar imagens no Google (via scraping)
+export async function searchImages(query: string, count: number = 3): Promise<string[]> {
+  const urls: string[] = [];
+
+  // 1. Tentar Google Custom Search (se configurado)
+  if (process.env.GEMINI_API_KEY) {
+    try {
+      const q = encodeURIComponent(query);
+      const res = await fetch(
+        `https://www.googleapis.com/customsearch/v1?key=${process.env.GEMINI_API_KEY}&cx=014635489189399665498:aapetswkbym&q=${q}&searchType=image&num=${count}`
+      );
+      if (res.ok) {
+        const data = await res.json() as any;
+        if (data.items) {
+          data.items.forEach((i: any) => urls.push(i.link));
+          if (urls.length > 0) {
+            console.log(`[SEARCH/Google] ${urls.length} imagens encontradas`);
+            return urls;
+          }
+        }
+      }
+    } catch (e: any) {
+      console.log("[SEARCH/Google] Erro:", e.message);
+    }
+  }
+
+  // 2. DuckDuckGo (grátis, sem chave)
+  try {
+    const q = encodeURIComponent(query);
+    // Pegar vqd token
+    const tokenRes = await fetch(`https://duckduckgo.com/?q=${q}&iax=images&ia=images`);
+    const tokenHtml = await tokenRes.text();
+    const vqdMatch = tokenHtml.match(/vqd=([\d-]+)/);
+    if (vqdMatch) {
+      const vqd = vqdMatch[1];
+      const imgRes = await fetch(
+        `https://duckduckgo.com/i.js?q=${q}&o=json&p=1&s=0&u=bing&f=,,,,,&l=br-pt&vqd=${vqd}`
+      );
+      if (imgRes.ok) {
+        const imgData = await imgRes.json() as any;
+        const results = imgData.results?.slice(0, count) || [];
+        results.forEach((r: any) => { if (r.image) urls.push(r.image); });
+        if (urls.length > 0) {
+          console.log(`[SEARCH/DuckDuckGo] ${urls.length} imagens encontradas`);
+          return urls;
+        }
+      }
+    }
+  } catch (e: any) {
+    console.log("[SEARCH/DDG] Erro:", e.message);
+  }
+
+  // 3. Fallback: gerar com Pollinations
+  try {
+    const encoded = encodeURIComponent(query + ", high quality, detailed");
+    const url = `https://image.pollinations.ai/prompt/${encoded}?width=512&height=512&nologo=true`;
+    urls.push(url);
+    console.log("[SEARCH/Fallback] Usando Pollinations como fallback");
+  } catch {}
+
+  return urls;
+}
+
 export function getCurrentTime(): string {
   return new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }

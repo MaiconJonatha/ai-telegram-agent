@@ -1,6 +1,6 @@
 import { Bot, Context } from "grammy";
 import { processMessage, activeRepos, getLastAgent } from "../agent/agent";
-import { transcribeAudio, generateImage, generateVideo } from "../agent/tools";
+import { transcribeAudio, generateImage, generateVideo, searchImages } from "../agent/tools";
 import { listRepos, getRepoTree, readFile, executeCoderTask, isGitHubConfigured } from "../agent/coder";
 import { InputFile } from "grammy";
 
@@ -41,6 +41,26 @@ bot.on("message:text", async (ctx) => {
   console.log(`[${new Date().toISOString()}] ${userName} (${userId}): ${text}`);
 
   try {
+    // ========== BUSCAR IMAGENS NO GOOGLE ==========
+    const searchMatch = text.match(/^\/buscar\s+(.+)/i) || text.match(/^\/google\s+(.+)/i);
+    if (searchMatch) {
+      await ctx.reply("🔍 Buscando imagens...");
+      await ctx.replyWithChatAction("upload_photo");
+      const urls = await searchImages(searchMatch[1], 3);
+      if (urls.length > 0) {
+        for (const url of urls) {
+          try {
+            await ctx.replyWithPhoto(url);
+          } catch {
+            await ctx.reply(`🖼️ ${url}`);
+          }
+        }
+      } else {
+        await ctx.reply("Nenhuma imagem encontrada. Tente outro termo.");
+      }
+      return;
+    }
+
     // ========== COMANDOS DE IMAGEM ==========
     const imgMatch = text.match(/^\/imagem\s+(.+)/i) || text.match(/^\/img\s+(.+)/i);
     if (imgMatch) {
