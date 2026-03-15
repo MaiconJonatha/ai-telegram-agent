@@ -2,6 +2,8 @@ import { Bot, Context } from "grammy";
 import { processMessage, activeRepos, getLastAgent, setSendMessageCallback } from "../agent/agent";
 import { transcribeAudio, generateImage, generateVideo, searchImages } from "../agent/tools";
 import { generateFlowImage, generateFlowVideo } from "../agent/flow";
+import { postToInstagram } from "../agent/instagram";
+import { addMedia, getLastVideos, mergeVideos } from "../agent/media";
 import { listRepos, getRepoTree, readFile, executeCoderTask, isGitHubConfigured } from "../agent/coder";
 import { InputFile } from "grammy";
 
@@ -50,6 +52,7 @@ bot.on("message:text", async (ctx) => {
       await ctx.replyWithChatAction("upload_photo");
       const imgBuffer = await generateFlowImage(prompt);
       if (imgBuffer) {
+        addMedia(userId, imgBuffer, "image", prompt);
         await ctx.replyWithPhoto(new InputFile(imgBuffer, "flow-image.png"), {
           caption: `🎨 Google Flow\n\n${prompt}`,
         });
@@ -67,6 +70,7 @@ bot.on("message:text", async (ctx) => {
       await ctx.replyWithChatAction("upload_video");
       const vidBuffer = await generateFlowVideo(prompt);
       if (vidBuffer) {
+        addMedia(userId, vidBuffer, "video", prompt);
         await ctx.replyWithVideo(new InputFile(vidBuffer, "flow-video.mp4"), {
           caption: `🎬 Google Flow\n\n${prompt}`,
         });
@@ -137,6 +141,7 @@ bot.on("message:text", async (ctx) => {
       await ctx.replyWithChatAction("upload_photo");
       const imgBuffer = await generateImage(imgMatch[1]);
       if (imgBuffer) {
+        addMedia(userId, imgBuffer, "image", imgMatch[1]);
         await ctx.replyWithPhoto(new InputFile(imgBuffer, "image.png"), { caption: imgMatch[1] });
       } else {
         await ctx.reply("Não consegui gerar a imagem. Tente outro prompt.");
@@ -151,6 +156,7 @@ bot.on("message:text", async (ctx) => {
       await ctx.replyWithChatAction("upload_video");
       const vidBuffer = await generateVideo(vidMatch[1]);
       if (vidBuffer) {
+        addMedia(userId, vidBuffer, "video", vidMatch[1]);
         await ctx.replyWithVideo(new InputFile(vidBuffer, "video.mp4"), { caption: vidMatch[1] });
       } else {
         await ctx.reply("❌ Não consegui gerar o vídeo. Verifique se a GEMINI_API_KEY está configurada e tente outro prompt.");
@@ -252,6 +258,146 @@ bot.on("message:text", async (ctx) => {
         }
       } else {
         await ctx.reply(result, { parse_mode: "Markdown" }).catch(() => ctx.reply(result));
+      }
+      return;
+    }
+
+    // ========== JUNTAR / MERGE VÍDEOS ==========
+    const mergeMatch = text.match(/\b(junta|juntar|merge|combina|combinar|une|unir)\b.*\b(v[ií]deos?|videos?|os\s*2|os\s*dois)\b/i);
+    if (mergeMatch) {
+      const wantsInstagram = /\b(e\s+)?(posta|publica|postar|publicar)\b.*\b(no\s+)?(instagram|insta)\b/i.test(text);
+      // Detect count: default 2
+      const countMatch = text.match(/\b(\d+)\b/);
+      const count = countMatch ? parseInt(countMatch[1], 10) : 2;
+
+      const lastVideos = getLastVideos(userId, count);
+      if (lastVideos.length < 2) {
+        await ctx.reply("Nenhum vídeo gerado recentemente. Gere pelo menos 2 vídeos antes de juntar.");
+        return;
+      }
+
+      await ctx.reply(`🎬 Juntando ${lastVideos.length} vídeos...`);
+      await ctx.replyWithChatAction("upload_video");
+
+      try {
+        const mergedBuffer = await mergeVideos(lastVideos);
+
+        if (wantsInstagram) {
+          await ctx.reply("📤 Vídeos juntados! Postando no Instagram...");
+          const posted = await postToInstagram(mergedBuffer, "Vídeo combinado", true);
+          if (posted) {
+            await ctx.replyWithVideo(new InputFile(mergedBuffer, "merged-video.mp4"), {
+              caption: "✅ Vídeo combinado postado no Instagram!",
+            });
+          } else {
+            await ctx.replyWithVideo(new InputFile(mergedBuffer, "merged-video.mp4"), {
+              caption: "⚠️ Vídeo combinado gerado, mas houve um problema ao postar no Instagram.",
+            });
+          }
+        } else {
+          await ctx.replyWithVideo(new InputFile(mergedBuffer, "merged-video.mp4"), {
+            caption: `🎬 ${lastVideos.length} vídeos combinados!`,
+          });
+        }
+      } catch (e: any) {
+        console.error("[Merge] Erro:", e.message);
+        await ctx.reply("❌ Erro ao juntar os vídeos. Verifique se o ffmpeg está instalado.");
+      }
+      return;
+    }
+
+    // ========== POSTAR NO INSTAGRAM ==========
+    const instagramMatch = text.match(/\b(posta|postar|publica|publicar|posta(r)?)\b.*\b(no |no\s)?(instagram|insta)\b/i) ||
+                           text.match(/\b(instagram|insta)\b.*\b(posta|postar|publica|publicar)\b/i);
+    if (instagramMatch) {
+      // Extract the prompt - remove the instagram-related words
+      const prompt = text
+        .replace(/\b(posta|postar|publica|publicar|poste|publique)\b/gi, "")
+        .replace(/\b(no |na |pro |pra |para o |para a )?\b(instagram|insta)\b/gi, "")
+        .replace(/\b(uma |um |a |o |esse |esta |este )?\b(imagem|foto|image|video|vídeo|filme)\b/gi, "")
+        .replace(/\b(de |do |da |com |sobre |essa |esse )\b/gi, "")
+        .trim() || text;
+
+      // Detect if user wants video
+      const wantsVideo = /\b(video|vídeo|filme|animação|animacao|clip)\b/i.test(text);
+
+      if (wantsVideo) {
+        await ctx.reply("🎬 Gerando vídeo via Google Flow e postando no Instagram... (pode levar ~2-4 min)");
+        await ctx.replyWithChatAction("upload_video");
+        const vidBuffer = await generateFlowVideo(prompt);
+        if (!vidBuffer) {
+          await ctx.reply("❌ Não consegui gerar o vídeo via Flow.");
+          return;
+        }
+        addMedia(userId, vidBuffer, "video", prompt);
+        await ctx.reply("📤 Vídeo gerado! Postando no Instagram...");
+        const posted = await postToInstagram(vidBuffer, prompt, true);
+        if (posted) {
+          await ctx.replyWithVideo(new InputFile(vidBuffer, "instagram-video.mp4"), {
+            caption: `✅ Vídeo postado no Instagram!\n\n${prompt}`,
+          });
+        } else {
+          await ctx.replyWithVideo(new InputFile(vidBuffer, "instagram-video.mp4"), {
+            caption: `⚠️ Vídeo gerado, mas houve um problema ao postar no Instagram.\n\n${prompt}`,
+          });
+        }
+      } else {
+        await ctx.reply("🎨 Gerando imagem via Google Flow e postando no Instagram... (pode levar ~1-2 min)");
+        await ctx.replyWithChatAction("upload_photo");
+        const imgBuffer = await generateFlowImage(prompt);
+        if (!imgBuffer) {
+          await ctx.reply("❌ Não consegui gerar a imagem via Flow.");
+          return;
+        }
+        addMedia(userId, imgBuffer, "image", prompt);
+        await ctx.reply("📤 Imagem gerada! Postando no Instagram...");
+        const posted = await postToInstagram(imgBuffer, prompt, false);
+        if (posted) {
+          await ctx.replyWithPhoto(new InputFile(imgBuffer, "instagram-image.png"), {
+            caption: `✅ Imagem postada no Instagram!\n\n${prompt}`,
+          });
+        } else {
+          await ctx.replyWithPhoto(new InputFile(imgBuffer, "instagram-image.png"), {
+            caption: `⚠️ Imagem gerada, mas houve um problema ao postar no Instagram.\n\n${prompt}`,
+          });
+        }
+      }
+      return;
+    }
+
+    // ========== DETECÇÃO NATURAL DE IMAGEM/VÍDEO ==========
+    const lowerText = text.toLowerCase();
+    const imageKeywords = /\b(gera|cria|faz|faça|faca|gere|crie|desenh|pint|imagina|mostr).*\b(imagem|foto|picture|image|desenho|ilustra|arte|retrato|pintura)\b|\b(imagem|foto|image|desenho)\b.*\b(de |do |da |dos |das |um |uma )\b/i;
+    const videoKeywords = /\b(gera|cria|faz|faça|faca|gere|crie|mostr).*\b(video|vídeo|filme|animação|animacao|clip)\b|\b(video|vídeo|filme)\b.*\b(de |do |da |um |uma )\b/i;
+
+    if (videoKeywords.test(text)) {
+      const prompt = text.replace(/^(gera|cria|faz|faça|faca|gere|crie|mostra?|me\s)?\s*(um |uma |o |a )?\s*(video|vídeo|filme|animação|animacao|clip)\s*(de |do |da |dos |das |com |sobre )?\s*/i, "").trim() || text;
+      await ctx.reply("🎬 Gerando vídeo via Google Flow... (pode levar ~1-3 min)");
+      await ctx.replyWithChatAction("upload_video");
+      const vidBuffer = await generateFlowVideo(prompt);
+      if (vidBuffer) {
+        addMedia(userId, vidBuffer, "video", prompt);
+        await ctx.replyWithVideo(new InputFile(vidBuffer, "flow-video.mp4"), {
+          caption: `🎬 Google Flow\n\n${prompt}`,
+        });
+      } else {
+        await ctx.reply("❌ Não consegui gerar o vídeo. Pode ser falta de créditos no Flow.");
+      }
+      return;
+    }
+
+    if (imageKeywords.test(text)) {
+      const prompt = text.replace(/^(gera|cria|faz|faça|faca|gere|crie|desenha?|pinta?|mostra?|me\s)?\s*(um |uma |o |a )?\s*(imagem|foto|picture|image|desenho|ilustração|ilustracao|arte|retrato|pintura)\s*(de |do |da |dos |das |com |sobre )?\s*/i, "").trim() || text;
+      await ctx.reply("🎨 Gerando imagem via Google Flow... (pode levar ~30s)");
+      await ctx.replyWithChatAction("upload_photo");
+      const imgBuffer = await generateFlowImage(prompt);
+      if (imgBuffer) {
+        addMedia(userId, imgBuffer, "image", prompt);
+        await ctx.replyWithPhoto(new InputFile(imgBuffer, "flow-image.png"), {
+          caption: `🎨 ${prompt}`,
+        });
+      } else {
+        await ctx.reply("❌ Não consegui gerar a imagem.");
       }
       return;
     }

@@ -1,103 +1,110 @@
-import initSqlJs, { Database as SqlJsDatabase } from "sql.js";
-import fs from "fs";
-import path from "path";
+import { Pool } from "pg";
 
-const DB_PATH = path.join(process.cwd(), "memory.db");
+const DATABASE_URL = process.env.DATABASE_URL || "";
 
-let db: SqlJsDatabase;
-
-// Inicializar banco de dados
-function getDb(): SqlJsDatabase {
-  if (!db) {
-    throw new Error("Database not initialized. Call initDatabase() first.");
-  }
-  return db;
-}
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 5,
+});
 
 export async function initDatabase(): Promise<void> {
-  const SQL = await initSqlJs();
-
-  // Carregar banco existente ou criar novo
-  if (fs.existsSync(DB_PATH)) {
-    const buffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buffer);
-    console.log("💾 Banco de dados carregado:", DB_PATH);
-  } else {
-    db = new SQL.Database();
-    console.log("💾 Novo banco de dados criado:", DB_PATH);
-  }
-
-  // Setup tables
-  db.run(`
-    CREATE TABLE IF NOT EXISTS conversations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id TEXT NOT NULL,
-      role TEXT NOT NULL,
-      content TEXT NOT NULL,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-  db.run(`
-    CREATE TABLE IF NOT EXISTS user_preferences (
-      user_id TEXT PRIMARY KEY,
-      name TEXT,
-      language TEXT DEFAULT 'pt-BR',
-      context TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  saveDb();
-}
-
-function saveDb(): void {
+  const client = await pool.connect();
   try {
-    const data = getDb().export();
-    fs.writeFileSync(DB_PATH, Buffer.from(data));
-  } catch (e: any) {
-    console.log("[DB] Erro ao salvar:", e.message);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        timestamp TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_preferences (
+        user_id TEXT PRIMARY KEY,
+        name TEXT,
+        language TEXT DEFAULT 'pt-BR',
+        context TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS media_log (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        prompt TEXT,
+        provider TEXT,
+        file_size INTEGER,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS agent_log (
+        id SERIAL PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        agent TEXT NOT NULL,
+        action TEXT,
+        status TEXT DEFAULT 'success',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    console.log("💾 PostgreSQL conectado (Neon):", DATABASE_URL.split("@")[1]?.split("/")[0] || "neon");
+  } finally {
+    client.release();
   }
 }
 
 export function saveMessage(userId: string, role: string, content: string): void {
-  getDb().run("INSERT INTO conversations (user_id, role, content) VALUES (?, ?, ?)", [userId, role, content]);
-  saveDb();
+  pool.query("INSERT INTO conversations (user_id, role, content) VALUES ($1, $2, $3)", [userId, role, content])
+    .catch(e => console.log("[DB] Erro ao salvar:", e.message));
 }
 
-export function getHistory(userId: string, limit: number = 20): Array<{role: string; content: string}> {
-  const results: Array<{role: string; content: string}> = [];
-  const stmt = getDb().prepare(
-    "SELECT role, content FROM conversations WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?",
-    [userId, limit]
-  );
-  while (stmt.step()) {
-    const row = stmt.getAsObject() as any;
-    results.push({ role: row.role, content: row.content });
+export async function getHistory(userId: string, limit: number = 20): Promise<Array<{role: string; content: string}>> {
+  try {
+    const res = await pool.query(
+      "SELECT role, content FROM conversations WHERE user_id = $1 ORDER BY timestamp DESC LIMIT $2",
+      [userId, limit]
+    );
+    return res.rows.reverse();
+  } catch (e: any) {
+    console.log("[DB] Erro ao buscar histórico:", e.message);
+    return [];
   }
-  stmt.free();
-  return results.reverse();
 }
 
 export function saveUserPreference(userId: string, name: string, context: string): void {
-  getDb().run(
-    "INSERT OR REPLACE INTO user_preferences (user_id, name, context) VALUES (?, ?, ?)",
+  pool.query(
+    "INSERT INTO user_preferences (user_id, name, context) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET name = $2, context = $3",
     [userId, name, context]
-  );
-  saveDb();
+  ).catch(e => console.log("[DB] Erro ao salvar preferência:", e.message));
 }
 
-export function getUserPreference(userId: string): {name: string; context: string} | undefined {
-  const stmt = getDb().prepare("SELECT name, context FROM user_preferences WHERE user_id = ?", [userId]);
-  if (stmt.step()) {
-    const row = stmt.getAsObject() as any;
-    stmt.free();
-    return { name: row.name, context: row.context };
+export async function getUserPreference(userId: string): Promise<{name: string; context: string} | undefined> {
+  try {
+    const res = await pool.query("SELECT name, context FROM user_preferences WHERE user_id = $1", [userId]);
+    return res.rows[0] || undefined;
+  } catch {
+    return undefined;
   }
-  stmt.free();
-  return undefined;
 }
 
 export function clearHistory(userId: string): void {
-  getDb().run("DELETE FROM conversations WHERE user_id = ?", [userId]);
-  saveDb();
+  pool.query("DELETE FROM conversations WHERE user_id = $1", [userId])
+    .catch(e => console.log("[DB] Erro ao limpar:", e.message));
+}
+
+export function logMedia(userId: string, type: string, prompt: string, provider: string, fileSize: number): void {
+  pool.query(
+    "INSERT INTO media_log (user_id, type, prompt, provider, file_size) VALUES ($1, $2, $3, $4, $5)",
+    [userId, type, prompt, provider, fileSize]
+  ).catch(e => console.log("[DB] Erro ao logar mídia:", e.message));
+}
+
+export function logAgent(userId: string, agent: string, action: string, status: string = "success"): void {
+  pool.query(
+    "INSERT INTO agent_log (user_id, agent, action, status) VALUES ($1, $2, $3, $4)",
+    [userId, agent, action, status]
+  ).catch(e => console.log("[DB] Erro ao logar agente:", e.message));
 }

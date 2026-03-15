@@ -16,6 +16,8 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`🌐 Health server on port ${PORT}`);
+}).on("error", () => {
+  console.log(`⚠️ Porta ${PORT} em uso, health server ignorado`);
 });
 
 // Catch errors sem crashar
@@ -40,10 +42,10 @@ async function main() {
   await fetch(`https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=true`);
   console.log("🔄 Webhook limpo");
 
-  // Esperar 3s
-  await new Promise(r => setTimeout(r, 3000));
+  // Esperar antes de iniciar polling
+  await new Promise(r => setTimeout(r, 5000));
 
-  // Iniciar polling - sem retry (evita loop de conflito)
+  // Iniciar polling
   console.log("📡 Iniciando polling...");
   bot.start({
     onStart: (info) => console.log(`✅ Bot @${info.username} online!`),
@@ -52,7 +54,6 @@ async function main() {
 
 main().catch((e) => {
   console.error("❌ Fatal:", e.message);
-  // NÃO process.exit - manter health server vivo
 });
 
 process.on("SIGTERM", () => {

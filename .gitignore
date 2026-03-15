@@ -2,3 +2,10 @@ node_modules/
 dist/
 memory.db
 .env
+google_cookies.json
+instagram_cookies.json
+test_video.ts
+wv2.jpg
+wv3.jpg
+white_vision_face.jpg
+white_vision_face.webp

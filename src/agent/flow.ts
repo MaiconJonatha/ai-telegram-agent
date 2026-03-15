@@ -1,122 +1,499 @@
 /**
- * Geração de imagens e vídeos via APIs do Google (Gemini).
- * Sem Playwright - usa APIs REST diretamente.
+ * Geração de imagens e vídeos via Google Flow (labs.google/fx/tools/flow)
+ * Usa Puppeteer para automatizar o site diretamente.
  */
 
-// ========== IMAGEM via Gemini ==========
+import puppeteer, { Browser, Page } from "puppeteer-core";
+import * as fs from "fs";
+import * as path from "path";
 
-export async function generateFlowImage(prompt: string): Promise<Buffer | null> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) { console.log("[Flow/IMG] Sem GEMINI_API_KEY"); return null; }
+const CHROME_PATH = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+const COOKIES_PATH = path.join(__dirname, "../../google_cookies.json");
+const FLOW_URL = "https://labs.google/fx/pt/tools/flow";
 
-  // 1. Gemini 2.5 Flash Image (gera imagens nativas)
-  try {
-    console.log(`[Flow/IMG] Gemini: ${prompt.substring(0, 50)}...`);
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${key}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `Generate an image: ${prompt}` }] }],
-          generationConfig: { responseModalities: ["IMAGE"] },
-        }),
+let browserInstance: Browser | null = null;
+
+async function getBrowser(): Promise<Browser> {
+  if (browserInstance && browserInstance.connected) return browserInstance;
+  browserInstance = await puppeteer.launch({
+    executablePath: CHROME_PATH,
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-gpu", "--window-size=1280,720"],
+  });
+  return browserInstance;
+}
+
+async function loadCookies(page: Page): Promise<void> {
+  if (!fs.existsSync(COOKIES_PATH)) {
+    console.log("[Flow] Cookies não encontrados:", COOKIES_PATH);
+    return;
+  }
+  const cookies = JSON.parse(fs.readFileSync(COOKIES_PATH, "utf-8"));
+  const mapped = cookies
+    .filter((c: any) => c.domain && c.name && c.value)
+    .map((c: any) => ({
+      name: c.name,
+      value: c.value,
+      domain: c.domain,
+      path: c.path || "/",
+      expires: c.expires && c.expires > 0 ? Math.floor(c.expires) : undefined,
+      httpOnly: c.httpOnly || false,
+      secure: c.secure || false,
+      sameSite: c.sameSite === "None" ? "None" as const :
+               c.sameSite === "Strict" ? "Strict" as const : "Lax" as const,
+    }));
+  await page.setCookie(...mapped);
+}
+
+async function closePopups(page: Page): Promise<void> {
+  for (let i = 0; i < 6; i++) {
+    try {
+      const buttons = await page.$$("button");
+      let found = false;
+      for (const btn of buttons) {
+        const text = await page.evaluate((el: any) => el.textContent || "", btn);
+        if (text.trim() === "close" || text.trim() === "Aceitar") {
+          await btn.click();
+          found = true;
+          await new Promise(r => setTimeout(r, 500));
+          break;
+        }
       }
-    );
-    if (res.ok) {
-      const data = await res.json() as any;
-      const img = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
-      if (img?.inlineData?.data) {
-        console.log("[Flow/IMG] Gemini OK!");
-        return Buffer.from(img.inlineData.data, "base64");
-      }
-    } else {
-      const err = await res.text();
-      console.log("[Flow/IMG] Gemini erro:", err.substring(0, 150));
+      if (!found) break;
+    } catch {
+      break;
     }
-  } catch (e: any) {
-    console.log("[Flow/IMG] Gemini erro:", e.message);
+  }
+}
+
+async function clickNewProject(page: Page): Promise<void> {
+  const buttons = await page.$$("button");
+  for (const btn of buttons) {
+    const text = await page.evaluate((el: any) => el.textContent || "", btn);
+    if (text.includes("Novo projeto") || text.includes("New project")) {
+      await btn.click();
+      return;
+    }
+  }
+}
+
+async function typePrompt(page: Page, prompt: string): Promise<boolean> {
+  const selectors = ['[contenteditable="true"]', 'div[role="textbox"]', "textarea"];
+  for (const sel of selectors) {
+    const field = await page.$(sel);
+    if (field) {
+      await field.click();
+      await field.type(prompt, { delay: 20 });
+      return true;
+    }
+  }
+  return false;
+}
+
+async function clickCreate(page: Page): Promise<void> {
+  // Tentar clicar no botão de criar de várias formas
+  const allButtons = await page.$$("button");
+  for (const btn of allButtons) {
+    const info = await page.evaluate((el: any) => {
+      const rect = el.getBoundingClientRect();
+      const text = el.textContent || "";
+      const ariaLabel = el.getAttribute("aria-label") || "";
+      // Botão da seta fica no canto inferior direito da barra de prompt
+      return {
+        text: text.trim(),
+        ariaLabel,
+        visible: rect.width > 0 && rect.height > 0,
+        x: rect.x,
+        y: rect.y,
+        w: rect.width,
+        h: rect.height,
+      };
+    }, btn);
+
+    if (!info.visible) continue;
+
+    // Procurar pelo botão arrow_forward/Criar que fica perto do prompt
+    if (
+      info.text.includes("arrow_forward") ||
+      info.ariaLabel.includes("Criar") ||
+      info.ariaLabel.includes("Create") ||
+      info.ariaLabel.includes("Send") ||
+      info.ariaLabel.includes("Enviar")
+    ) {
+      console.log(`[Flow] Clicando botão: "${info.text}" aria="${info.ariaLabel}" pos=${info.x},${info.y}`);
+      await btn.click();
+      return;
+    }
   }
 
-  // 2. Pollinations (grátis, sem chave)
-  try {
-    console.log(`[Flow/IMG] Pollinations: ${prompt.substring(0, 50)}...`);
-    const encoded = encodeURIComponent(prompt + ", high quality, detailed");
-    const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&nologo=true`;
-    const res = await fetch(url);
-    if (res.ok) {
-      const buf = Buffer.from(await res.arrayBuffer());
-      if (buf.length > 1000) {
-        console.log("[Flow/IMG] Pollinations OK!");
-        return buf;
-      }
+  // Fallback: clicar no botão circular no canto inferior direito (a seta →)
+  // Geralmente é o último botão visível na barra inferior
+  const bottomButtons = [];
+  for (const btn of allButtons) {
+    const pos = await page.evaluate((el: any) => {
+      const rect = el.getBoundingClientRect();
+      return { y: rect.y, x: rect.x, w: rect.width, h: rect.height, visible: rect.width > 0 };
+    }, btn);
+    if (pos.visible && pos.y > 600) { // abaixo de 600px = barra inferior
+      bottomButtons.push({ btn, ...pos });
     }
-  } catch (e: any) {
-    console.log("[Flow/IMG] Pollinations erro:", e.message);
+  }
+
+  if (bottomButtons.length > 0) {
+    // O botão mais à direita na barra inferior
+    bottomButtons.sort((a, b) => b.x - a.x);
+    console.log(`[Flow] Fallback: clicando botão mais à direita na barra inferior (x=${bottomButtons[0].x})`);
+    await bottomButtons[0].btn.click();
+  }
+}
+
+async function downloadImageFromPage(page: Page, imgElement: any): Promise<Buffer | null> {
+  const imgSrc: string = await page.evaluate((el: any) => el.src || "", imgElement);
+
+  if (imgSrc.startsWith("data:")) {
+    const base64Data = imgSrc.split(",")[1];
+    return base64Data ? Buffer.from(base64Data, "base64") : null;
+  }
+
+  if (imgSrc.startsWith("http")) {
+    const b64: string | null = await page.evaluate(async (src: string) => {
+      try {
+        const res = await fetch(src);
+        const arrayBuf = await res.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuf);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+      } catch {
+        return null;
+      }
+    }, imgSrc);
+
+    return b64 ? Buffer.from(b64, "base64") : null;
   }
 
   return null;
 }
 
-// ========== VÍDEO via Gemini Veo ==========
+async function checkFailed(page: Page): Promise<boolean> {
+  return page.evaluate(`(() => {
+    const all = document.querySelectorAll("*");
+    for (let i = 0; i < all.length; i++) {
+      const t = all[i].textContent?.trim();
+      if (t === "Falha" || t === "Failed") return true;
+    }
+    return false;
+  })()`) as Promise<boolean>;
+}
 
-export async function generateFlowVideo(prompt: string): Promise<Buffer | null> {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) { console.log("[Flow/VID] Sem GEMINI_API_KEY"); return null; }
+// ========== IMAGEM via Google Flow ==========
+
+export async function generateFlowImage(prompt: string): Promise<Buffer | null> {
+  let page: Page | null = null;
 
   try {
-    console.log(`[Flow/VID] Veo 3.0: ${prompt.substring(0, 50)}...`);
+    console.log(`[Flow/IMG] Gerando via site: ${prompt.substring(0, 50)}...`);
+    const browser = await getBrowser();
+    page = await browser.newPage();
+    await page.setViewport({ width: 1280, height: 720 });
+    await loadCookies(page);
 
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-fast-generate-001:predictLongRunning?key=${key}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instances: [{ prompt }],
-          parameters: { aspectRatio: "16:9", durationSeconds: 8, personGeneration: "allow_adult" },
-        }),
-      }
-    );
+    await page.goto(FLOW_URL, { waitUntil: "networkidle2", timeout: 30000 });
+    await closePopups(page);
+    await new Promise(r => setTimeout(r, 1000));
+    await clickNewProject(page);
+    await new Promise(r => setTimeout(r, 3000));
 
-    if (!res.ok) {
-      const err = await res.text();
-      console.log("[Flow/VID] Veo erro:", err.substring(0, 150));
+    if (!(await typePrompt(page, prompt))) {
+      console.log("[Flow/IMG] Campo de prompt não encontrado");
+      await page.close();
       return null;
     }
 
-    const data = await res.json() as any;
-    const op = data.name;
-    if (!op) { console.log("[Flow/VID] Sem operation name"); return null; }
+    await new Promise(r => setTimeout(r, 500));
+    await clickCreate(page);
+    console.log("[Flow/IMG] Aguardando geração...");
 
-    // Poll (max 3 min)
-    for (let i = 0; i < 36; i++) {
-      await new Promise(r => setTimeout(r, 5000));
-      const check = await fetch(`https://generativelanguage.googleapis.com/v1beta/${op}?key=${key}`);
-      const status = await check.json() as any;
+    // Esperar a imagem (max 90s)
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 3000));
 
-      if (status.done) {
-        const b64 = status.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.bytesBase64Encoded;
-        if (b64) { console.log("[Flow/VID] Veo OK!"); return Buffer.from(b64, "base64"); }
-
-        const uri = status.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
-        if (uri) {
-          const r = await fetch(uri);
-          if (r.ok) {
-            const buf = Buffer.from(await r.arrayBuffer());
-            if (buf.length > 1000) { console.log("[Flow/VID] Veo OK via URI!"); return buf; }
-          }
-        }
-        return null;
+      // Debug: salvar screenshot a cada 30s
+      if (i === 10 || i === 20) {
+        await page.screenshot({ path: path.join(__dirname, `../../debug_flow_${i}.png`) });
+        console.log(`[Flow/IMG] Debug screenshot salvo (iteração ${i})`);
       }
 
-      if (i % 6 === 0) console.log(`[Flow/VID] Aguardando... ${i * 5}s`);
+      // Buscar imagens de múltiplas formas
+      let images = await page.$$('img[alt="Imagem gerada"], img[alt="Generated image"]');
+      if (images.length === 0) {
+        // Tentar seletores alternativos - imagens dentro de links
+        images = await page.$$('a[href*="/edit/"] img');
+      }
+      if (images.length === 0) {
+        // Qualquer imagem grande que não seja ícone
+        const allImgs = await page.$$("img");
+        for (const img of allImgs) {
+          const size = await page.evaluate((el: any) => {
+            const rect = el.getBoundingClientRect();
+            return { w: rect.width, h: rect.height, src: el.src || "", alt: el.alt || "" };
+          }, img);
+          if (size.w > 200 && size.h > 200 && !size.src.includes("logo") && !size.src.includes("icon") && !size.alt.includes("perfil") && !size.alt.includes("profile")) {
+            images = [img];
+            console.log(`[Flow/IMG] Imagem grande encontrada: ${size.w}x${size.h} alt="${size.alt}"`);
+            break;
+          }
+        }
+      }
+
+      if (images.length > 0) {
+        console.log(`[Flow/IMG] ${images.length} imagem(ns) encontrada(s)!`);
+        const buf = await downloadImageFromPage(page, images[0]);
+        if (buf && buf.length > 1000) {
+          console.log(`[Flow/IMG] OK! ${buf.length} bytes`);
+          await page.close();
+          return buf;
+        }
+      }
+
+      // Checar progresso - se tiver % significa que está gerando
+      const progress = await page.evaluate(`(() => {
+        const all = document.querySelectorAll("*");
+        let hasProgress = false;
+        let hasFail = false;
+        for (let i = 0; i < all.length; i++) {
+          const t = all[i].textContent?.trim();
+          if (t && t.match(/^\\d+%$/)) hasProgress = true;
+          if (t === "Falha" || t === "Failed") hasFail = true;
+        }
+        return { hasProgress, hasFail };
+      })()`) as { hasProgress: boolean; hasFail: boolean };
+
+      if (progress.hasProgress) {
+        if (i % 5 === 0) console.log("[Flow/IMG] Progresso detectado, aguardando...");
+        continue; // Ainda gerando, não verificar falha
+      }
+
+      if (i > 10 && progress.hasFail) {
+        console.log("[Flow/IMG] Geração falhou no Flow");
+        await page.screenshot({ path: path.join(__dirname, "../../debug_flow_fail.png") });
+        break;
+      }
+
+      if (i % 5 === 0) console.log(`[Flow/IMG] Aguardando... ${i * 3}s`);
     }
 
-    console.log("[Flow/VID] Timeout");
+    // Screenshot final pra debug
+    await page.screenshot({ path: path.join(__dirname, "../../debug_flow_final.png") });
+    console.log("[Flow/IMG] Screenshot final salvo");
+
+    await page.close();
     return null;
   } catch (e: any) {
-    console.log("[Flow/VID] Erro:", e.message);
+    console.log("[Flow/IMG] Erro:", e.message);
+    if (page) await page.close().catch(() => {});
     return null;
   }
 }
+
+// ========== VÍDEO via Google Flow ==========
+
+export async function generateFlowVideo(prompt: string): Promise<Buffer | null> {
+  let page: Page | null = null;
+
+  try {
+    console.log(`[Flow/VID] Gerando via site: ${prompt.substring(0, 50)}...`);
+    const browser = await getBrowser();
+    page = await browser.newPage();
+    await page.setViewport({ width: 1280, height: 720 });
+    await loadCookies(page);
+
+    await page.goto(FLOW_URL, { waitUntil: "networkidle2", timeout: 30000 });
+    await closePopups(page);
+    await new Promise(r => setTimeout(r, 1000));
+    await clickNewProject(page);
+    await new Promise(r => setTimeout(r, 3000));
+
+    // 1. Clicar no botão do modelo pra abrir o menu
+    const allBtns = await page.$$("button");
+    for (const btn of allBtns) {
+      const text = await page.evaluate((el: any) => el.textContent || "", btn);
+      if (text.includes("Banana") || text.includes("banana") || text.includes("crop_16_9")) {
+        await btn.click();
+        console.log(`[Flow/VID] Menu de modelo aberto: "${text.substring(0, 40)}"`);
+        await new Promise(r => setTimeout(r, 1500));
+        break;
+      }
+    }
+
+    // 2. Clicar na tab "Vídeo"
+    const tabs = await page.$$('[role="tab"]');
+    for (const tab of tabs) {
+      const text = await page.evaluate((el: any) => el.textContent || "", tab);
+      if (text.includes("deo") || text.includes("Video") || text.includes("videocam")) {
+        await tab.click();
+        console.log(`[Flow/VID] Tab Vídeo selecionada: "${text.trim()}"`);
+        await new Promise(r => setTimeout(r, 1000));
+        break;
+      }
+    }
+
+    // 2.5. Selecionar x1 (só 1 vídeo = 20 créditos em vez de 40)
+    const countTabs = await page.$$('[role="tab"]');
+    for (const tab of countTabs) {
+      const text = await page.evaluate((el: any) => el.textContent?.trim() || "", tab);
+      if (text === "x1") {
+        await tab.click();
+        console.log("[Flow/VID] Quantidade x1 selecionada");
+        await new Promise(r => setTimeout(r, 500));
+        break;
+      }
+    }
+
+    // 3. Fechar o menu
+    await page.keyboard.press("Escape");
+    await new Promise(r => setTimeout(r, 1500));
+
+    // 4. Digitar o prompt - clicar no campo de texto na parte inferior
+    await page.screenshot({ path: path.join(__dirname, "../../debug_flowvid_before_type.png") });
+    if (!(await typePrompt(page, prompt))) {
+      console.log("[Flow/VID] typePrompt falhou, tentando fallback...");
+      // Fallback: clicar diretamente nas coordenadas do campo de prompt
+      await page.mouse.click(640, 624); // centro do campo de prompt
+      await new Promise(r => setTimeout(r, 500));
+      await page.keyboard.type(prompt, { delay: 20 });
+    }
+    console.log("[Flow/VID] Prompt digitado");
+    await page.screenshot({ path: path.join(__dirname, "../../debug_flowvid_after_type.png") });
+
+    await new Promise(r => setTimeout(r, 500));
+    await clickCreate(page);
+    console.log("[Flow/VID] Aguardando geração de vídeo...");
+
+    // Esperar vídeo (max 5 min)
+    let videoBuffer: Buffer | null = null;
+    for (let i = 0; i < 100; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+
+      // Debug screenshot
+      if (i === 20 || i === 40) {
+        await page.screenshot({ path: path.join(__dirname, `../../debug_flowvid_${i}.png`) });
+        console.log(`[Flow/VID] Debug screenshot (iteração ${i})`);
+      }
+
+      // Procurar vídeos renderizados
+      const videos = await page.$$("video");
+      for (const vid of videos) {
+        const src: string = await page.evaluate((el: any) => {
+          const v = el as any;
+          if (v.src && v.src.startsWith("http")) return v.src;
+          const source = v.querySelector("source");
+          if (source && source.src) return source.src;
+          return "";
+        }, vid);
+
+        if (src && src.startsWith("http")) {
+          console.log("[Flow/VID] Vídeo encontrado, baixando...");
+          const b64: string | null = await page.evaluate(async (url: string) => {
+            try {
+              const res = await fetch(url);
+              const arrayBuf = await res.arrayBuffer();
+              const bytes = new Uint8Array(arrayBuf);
+              let binary = "";
+              for (let j = 0; j < bytes.length; j++) {
+                binary += String.fromCharCode(bytes[j]);
+              }
+              return btoa(binary);
+            } catch {
+              return null;
+            }
+          }, src);
+
+          if (b64) {
+            videoBuffer = Buffer.from(b64, "base64");
+            if (videoBuffer.length > 1000) {
+              console.log(`[Flow/VID] OK! ${videoBuffer.length} bytes`);
+              await page.close();
+              return videoBuffer;
+            }
+          }
+        }
+      }
+
+      // Também procurar por links de download de vídeo
+      const downloadLinks = await page.$$('a[download], a[href*=".mp4"]');
+      for (const link of downloadLinks) {
+        const href: string = await page.evaluate((el: any) => el.href || "", link);
+        if (href && href.startsWith("http")) {
+          console.log("[Flow/VID] Link de download encontrado");
+          const b64: string | null = await page.evaluate(async (url: string) => {
+            try {
+              const res = await fetch(url);
+              const arrayBuf = await res.arrayBuffer();
+              const bytes = new Uint8Array(arrayBuf);
+              let binary = "";
+              for (let j = 0; j < bytes.length; j++) {
+                binary += String.fromCharCode(bytes[j]);
+              }
+              return btoa(binary);
+            } catch {
+              return null;
+            }
+          }, href);
+
+          if (b64) {
+            videoBuffer = Buffer.from(b64, "base64");
+            if (videoBuffer.length > 1000) {
+              console.log(`[Flow/VID] OK via download! ${videoBuffer.length} bytes`);
+              await page.close();
+              return videoBuffer;
+            }
+          }
+        }
+      }
+
+      // Checar progresso
+      const progress = await page.evaluate(`(() => {
+        const all = document.querySelectorAll("*");
+        let hasProgress = false;
+        let hasFail = false;
+        for (let i = 0; i < all.length; i++) {
+          const t = all[i].textContent?.trim();
+          if (t && t.match(/^\\d+%$/)) hasProgress = true;
+          if (t === "Falha" || t === "Failed") hasFail = true;
+        }
+        return { hasProgress, hasFail };
+      })()`) as { hasProgress: boolean; hasFail: boolean };
+
+      if (progress.hasProgress) {
+        if (i % 10 === 0) console.log("[Flow/VID] Progresso detectado, aguardando...");
+        continue;
+      }
+
+      if (i > 20 && progress.hasFail) {
+        console.log("[Flow/VID] Geração falhou");
+        await page.screenshot({ path: path.join(__dirname, "../../debug_flowvid_fail.png") });
+        break;
+      }
+
+      if (i % 10 === 0) console.log(`[Flow/VID] Aguardando... ${i * 3}s`);
+    }
+
+    await page.close();
+    return null;
+  } catch (e: any) {
+    console.log("[Flow/VID] Erro:", e.message);
+    if (page) await page.close().catch(() => {});
+    return null;
+  }
+}
+
+process.on("SIGTERM", () => {
+  if (browserInstance) browserInstance.close().catch(() => {});
+});
+
+process.on("exit", () => {
+  if (browserInstance) browserInstance.close().catch(() => {});
+});

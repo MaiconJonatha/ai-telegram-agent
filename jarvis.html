@@ -1,0 +1,2657 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WHITE VISION // NEURAL INTERFACE</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@300;400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#08080c;color:#fff;font-family:'Share Tech Mono',monospace}
+
+/* ── Scan line ── */
+.scan-line{position:fixed;top:-2px;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.08),rgba(255,255,255,0.15),rgba(255,255,255,0.08),transparent);z-index:90;pointer-events:none;animation:scanDown 10s linear infinite}
+@keyframes scanDown{0%{top:-2px}100%{top:100%}}
+
+/* ── Title ── */
+.title{position:fixed;top:36px;left:50%;transform:translateX(-50%);text-align:center;z-index:10}
+.title h1{font-family:'Orbitron',sans-serif;font-weight:300;font-size:16px;letter-spacing:8px;color:#fff;opacity:0.85;transition:color 0.5s ease}
+.title .sub{font-size:10px;letter-spacing:6px;color:#555;margin-top:6px}
+
+/* ── Status indicators top-right ── */
+.status-indicators{position:fixed;top:36px;right:40px;z-index:10;display:flex;flex-direction:column;gap:10px}
+.status-dot{display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:3px;color:#555}
+.status-dot .dot{width:3px;height:3px;border-radius:50%}
+.dot-green{background:#666;box-shadow:0 0 4px rgba(255,255,255,0.3);animation:dotPulse 3s ease-in-out infinite}
+.dot-amber{background:#555;animation:dotPulse 4s ease-in-out infinite}
+.dot-dim{background:#333}
+@keyframes dotPulse{0%,100%{opacity:0.5}50%{opacity:1}}
+
+/* ── Neural network SVG container (behind face) ── */
+.neural-container{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:700px;height:560px;z-index:3;opacity:0.15}
+.neural-container svg{width:100%;height:100%}
+
+/* ── Hexagonal frame ── */
+.hex-frame{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:720px;height:720px;z-index:4;animation:hexRotate 60s linear infinite}
+@keyframes hexRotate{0%{transform:translate(-50%,-50%) rotate(0deg)}100%{transform:translate(-50%,-50%) rotate(360deg)}}
+.hex-frame svg{width:100%;height:100%}
+.hex-frame-inner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:620px;height:620px;z-index:4;animation:hexRotateReverse 45s linear infinite}
+@keyframes hexRotateReverse{0%{transform:translate(-50%,-50%) rotate(0deg)}100%{transform:translate(-50%,-50%) rotate(-360deg)}}
+.hex-frame-inner svg{width:100%;height:100%}
+
+/* ── Real Vision Face Image ── */
+.vision-real-face{display:none}
+@keyframes faceBreath{0%,100%{opacity:0.35;transform:translate(-50%,-55%) scale(1)}50%{opacity:0.4;transform:translate(-50%,-55%) scale(1.015)}}
+
+/* ── Vision Face SVG overlay ── */
+.vision-face-container-wrapper{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6;perspective:800px;width:300px;height:500px}
+.vision-face-container{width:300px;height:500px;transition:transform 0.15s ease-out;transform-style:preserve-3d;will-change:transform}
+.vision-face-container svg{width:100%;height:100%;filter:drop-shadow(0 0 20px rgba(255,255,255,0.05))}
+
+/* Eye blink */
+@keyframes blink{0%,42%,46%,100%{transform:scaleY(1)}44%{transform:scaleY(0.05)}}
+
+/* Mouth speaking */
+@keyframes gemPulse{0%,100%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.2)}}
+@keyframes mouthSpeak{0%,100%{ry:1;rx:8}25%{ry:6;rx:10}50%{ry:3;rx:9}75%{ry:7;rx:11}}
+
+/* ── Data readouts ── */
+.readout{position:fixed;z-index:10;padding:12px 0}
+.readout .label{font-size:9px;letter-spacing:4px;color:#555;margin-bottom:4px}
+.readout .value{font-size:13px;letter-spacing:2px;color:#ccc}
+.readout .bar-track{width:140px;height:1px;background:#222;margin-top:6px;position:relative}
+.readout .bar-fill{height:1px;background:rgba(255,255,255,0.5);transition:width 1s ease}
+.readout .connector{position:absolute;z-index:-1}
+
+.readout-tl{top:calc(50% - 200px);left:calc(50% - 460px)}
+.readout-tr{top:calc(50% - 200px);right:calc(50% - 460px);text-align:right}
+.readout-tr .bar-track{margin-left:auto}
+.readout-bl{bottom:calc(50% - 200px);left:calc(50% - 460px)}
+.readout-br{bottom:calc(50% - 200px);right:calc(50% - 460px);text-align:right}
+.readout-br .bar-track{margin-left:auto}
+
+.readout .detail{font-size:9px;color:#333;margin-top:4px;max-height:0;overflow:hidden;transition:max-height 0.4s ease,opacity 0.4s ease;opacity:0}
+.readout:hover .detail{max-height:60px;opacity:1}
+
+/* ── Connector lines from readouts ── */
+.connector-lines{position:fixed;top:0;left:0;width:100%;height:100%;z-index:3;pointer-events:none}
+
+/* ── Speech pulse ring around face ── */
+.speech-pulse-ring{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:5;width:340px;height:340px;border-radius:50%;border:1px solid rgba(255,255,255,0);pointer-events:none;transition:border-color 0.3s ease}
+.speech-pulse-ring.active{animation:speechPulse 1.5s ease-out infinite;border-color:rgba(255,255,255,0.15)}
+@keyframes speechPulse{0%{transform:translate(-50%,-50%) scale(1);opacity:0.5}100%{transform:translate(-50%,-50%) scale(1.3);opacity:0}}
+
+/* ── Audio visualizer ── */
+.audio-visualizer{position:fixed;top:calc(50% + 260px);left:50%;transform:translateX(-50%);z-index:10;display:flex;align-items:flex-end;gap:2px;height:40px;pointer-events:none}
+.audio-visualizer .bar{width:2px;background:rgba(255,255,255,0.3);border-radius:1px;transition:height 0.08s ease,background 0.3s ease;min-height:2px}
+.audio-visualizer.listening .bar{background:rgba(255,255,255,0.15)}
+.audio-visualizer.speaking .bar{background:rgba(255,255,255,0.5)}
+/* ── Audio visualizer reflection ── */
+.audio-visualizer-reflection{position:fixed;top:calc(50% + 300px);left:50%;transform:translateX(-50%) scaleY(-1);z-index:10;display:flex;align-items:flex-end;gap:2px;height:40px;pointer-events:none;opacity:0.15;mask-image:linear-gradient(to top,transparent,rgba(0,0,0,0.5));-webkit-mask-image:linear-gradient(to top,transparent,rgba(0,0,0,0.5))}
+.audio-visualizer-reflection .bar{width:2px;background:rgba(255,255,255,0.3);border-radius:1px;transition:height 0.08s ease,background 0.3s ease;min-height:2px}
+
+/* ── Microphone indicator ── */
+.mic-indicator{position:fixed;bottom:160px;right:40px;z-index:25;display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:3px;color:#555}
+.mic-icon{width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;transition:all 0.3s ease;cursor:pointer}
+.mic-icon svg{width:12px;height:12px;fill:rgba(255,255,255,0.3)}
+.mic-icon.active{border-color:rgba(255,255,255,0.5);animation:micPulse 2s ease-in-out infinite}
+.mic-icon.active svg{fill:rgba(255,255,255,0.7)}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,0.1)}50%{box-shadow:0 0 0 8px rgba(255,255,255,0)}}
+.mic-status{transition:opacity 0.3s ease}
+
+/* ── Terminal ── */
+.terminal{position:fixed;bottom:0;left:0;width:100%;z-index:20;border-top:1px solid #1a1a1a;background:linear-gradient(180deg,rgba(8,8,12,0.9),rgba(14,14,20,0.97));padding:14px 40px}
+.terminal::before{content:'';position:absolute;top:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(100,180,255,0.3),rgba(255,255,255,0.2),rgba(100,180,255,0.3),transparent);animation:terminalBorderPulse 4s ease-in-out infinite}
+@keyframes terminalBorderPulse{0%,100%{opacity:0.4}50%{opacity:1}}
+.terminal-output{max-height:150px;overflow-y:auto;margin-bottom:8px;scrollbar-width:none}
+.terminal-output::-webkit-scrollbar{display:none}
+.terminal-output .line{font-size:12px;color:#666;line-height:1.6;letter-spacing:1px}
+.terminal-output .line.response{color:#888}
+.terminal-output .line.user-msg{color:#9ab;letter-spacing:1px}
+.terminal-output .line.vision-msg{color:#bbb}
+.terminal-output .line.system-msg{color:#555;font-style:italic}
+.terminal-input{display:flex;align-items:center;gap:8px}
+.terminal-input .prompt{font-size:12px;color:#666;letter-spacing:2px;white-space:nowrap}
+.terminal-input input{background:none;border:none;outline:none;color:#ccc;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:1px;flex:1;caret-color:#fff}
+
+/* ── Particles ── */
+.particles{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none}
+.particle{position:absolute;width:1px;height:1px;background:#fff;border-radius:50%;opacity:0.3;animation:floatUp linear infinite}
+@keyframes floatUp{0%{transform:translateY(0);opacity:0}10%{opacity:0.3}90%{opacity:0.2}100%{transform:translateY(-100vh);opacity:0}}
+
+/* ── Node click highlight ── */
+.node-highlight{stroke:rgba(255,255,255,0.7) !important;fill:rgba(255,255,255,0.9) !important}
+.edge-highlight{stroke:rgba(255,255,255,0.5) !important}
+
+/* ── [3] Energy waves from mind stone ── */
+.energy-wave{position:fixed;border-radius:50%;border:1.5px solid rgba(255,215,0,0.6);pointer-events:none;z-index:7;animation:energyWaveExpand 1.2s ease-out forwards}
+@keyframes energyWaveExpand{0%{width:10px;height:10px;opacity:0.8;margin-left:-5px;margin-top:-5px}100%{width:300px;height:300px;opacity:0;margin-left:-150px;margin-top:-150px}}
+
+/* ── [4] Vibranium orbiting particles ── */
+.vibranium-particle{position:fixed;border-radius:50%;pointer-events:none;z-index:7}
+@keyframes orbitParticle{0%{transform:rotate(0deg) translateX(var(--orbit-radius)) rotate(0deg)}100%{transform:rotate(360deg) translateX(var(--orbit-radius)) rotate(-360deg)}}
+
+/* ── [5] Mode toggle button ── */
+.mode-toggle{position:fixed;top:36px;left:40px;z-index:25;cursor:pointer;font-family:'Orbitron',sans-serif;font-size:10px;letter-spacing:3px;color:#555;border:1px solid rgba(255,255,255,0.1);padding:6px 14px;background:rgba(8,8,12,0.8);transition:all 0.3s ease;user-select:none}
+.mode-toggle:hover{color:#fff;border-color:rgba(255,255,255,0.3)}
+
+/* ── [6] Sound toggle button ── */
+.sound-toggle{position:fixed;bottom:160px;right:90px;z-index:25;cursor:pointer;font-size:16px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.1);border-radius:50%;background:rgba(8,8,12,0.8);transition:all 0.3s ease;user-select:none}
+.sound-toggle:hover{border-color:rgba(255,255,255,0.3)}
+.sound-toggle.active{border-color:rgba(255,255,255,0.4)}
+
+/* ── [7] Fullscreen hint ── */
+.fullscreen-hint{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:15;font-size:10px;letter-spacing:3px;color:#444;opacity:1;transition:opacity 1s ease;pointer-events:none}
+/* ── Keyboard shortcuts hint ── */
+.keyboard-hints{position:fixed;bottom:14px;right:20px;z-index:15;font-size:9px;letter-spacing:2px;color:#333;opacity:0.7;transition:opacity 1.5s ease;pointer-events:none}
+
+/* ── [8] Glitch effect ── */
+@keyframes glitchEffect{0%{clip-path:inset(20% 0 30% 0);transform:translateX(-3px);filter:hue-rotate(90deg)}10%{clip-path:inset(50% 0 10% 0);transform:translateX(3px);filter:hue-rotate(0deg)}20%{clip-path:inset(10% 0 60% 0);transform:translateX(-2px);filter:hue-rotate(180deg)}30%{clip-path:inset(70% 0 5% 0);transform:translateX(2px);filter:hue-rotate(0deg)}40%{clip-path:inset(5% 0 40% 0);transform:translateX(-1px);filter:hue-rotate(270deg)}50%{clip-path:inset(30% 0 20% 0);transform:translateX(1px);filter:hue-rotate(0deg)}60%{clip-path:inset(60% 0 10% 0);transform:translateX(-2px);filter:hue-rotate(90deg)}70%{clip-path:inset(15% 0 50% 0);transform:translateX(2px);filter:hue-rotate(0deg)}80%{clip-path:inset(40% 0 15% 0);transform:translateX(-1px);filter:hue-rotate(180deg)}90%{clip-path:inset(5% 0 5% 0);transform:translateX(1px);filter:hue-rotate(0deg)}100%{clip-path:none;transform:translateX(0);filter:hue-rotate(0deg)}}
+.glitch{animation:glitchEffect 150ms steps(1) forwards !important}
+.glitch .scan-line{opacity:0.5}
+
+/* ── [9] Mind stone attention flash ── */
+@keyframes mindStoneFlash{0%{filter:drop-shadow(0 0 8px rgba(255,200,0,0.5))}25%{filter:drop-shadow(0 0 25px rgba(255,215,0,1)) drop-shadow(0 0 50px rgba(255,200,0,0.8))}50%{filter:drop-shadow(0 0 15px rgba(255,215,0,0.7))}75%{filter:drop-shadow(0 0 25px rgba(255,215,0,0.9))}100%{filter:drop-shadow(0 0 8px rgba(255,200,0,0.5))}}
+.mind-stone-flash #mindStone{animation:mindStoneFlash 1s ease-in-out}
+
+/* ── [10] Telegram bot status ── */
+.telegram-status{position:fixed;top:12px;left:40px;z-index:25;font-size:9px;letter-spacing:2px;color:#00cc55;opacity:0.7;display:flex;align-items:center;gap:6px;pointer-events:none}
+.telegram-status .tg-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:#00cc55;animation:tgDotPulse 3s ease-in-out infinite}
+@keyframes tgDotPulse{0%,100%{opacity:0.4;box-shadow:0 0 2px rgba(0,204,85,0.3)}50%{opacity:1;box-shadow:0 0 6px rgba(0,204,85,0.6)}}
+
+/* ── Arc reactor pulse ── */
+@keyframes arcReactorPulse{0%,100%{opacity:0.6;filter:drop-shadow(0 0 4px rgba(100,180,255,0.3))}50%{opacity:1;filter:drop-shadow(0 0 12px rgba(100,180,255,0.7))}}
+
+/* ── Eye ambient glow ── */
+@keyframes eyeGlowPulse{0%,100%{opacity:0.3}50%{opacity:0.6}}
+
+/* ── Mind stone connection lines ── */
+@keyframes mindStoneLinePulse{0%,100%{stroke-opacity:0.1}50%{stroke-opacity:0.4}}
+
+/* ── Connector flow animation ── */
+@keyframes connectorFlow{0%{stroke-dashoffset:20}100%{stroke-dashoffset:0}}
+
+/* ── Loading animation ── */
+.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#08080c;z-index:9999;pointer-events:none;transition:opacity 0.8s ease}
+.loading-overlay.hidden{opacity:0}
+.boot-scan-line{position:fixed;top:50%;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,rgba(100,180,255,0.6),rgba(255,255,255,0.8),rgba(100,180,255,0.6),transparent);z-index:10000;transform:scaleX(0);transition:transform 0.5s ease-out;pointer-events:none}
+.boot-scan-line.active{transform:scaleX(1)}
+
+/* ── Boot fade-in classes ── */
+.boot-hidden{opacity:0 !important;transition:opacity 0.5s ease !important}
+.boot-slide-left{opacity:0 !important;transform:translateX(-30px) !important;transition:opacity 0.5s ease, transform 0.5s ease !important}
+.boot-slide-right{opacity:0 !important;transform:translateX(30px) !important;transition:opacity 0.5s ease, transform 0.5s ease !important}
+.boot-slide-up{opacity:0 !important;transform:translateY(30px) !important;transition:opacity 0.5s ease, transform 0.5s ease !important}
+.boot-visible{opacity:1 !important;transform:none !important}
+
+/* ── Agent Nodes ── */
+.agent-node {
+  position: fixed;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.5s ease;
+  z-index: 15;
+  background: rgba(8,8,12,0.8);
+  opacity: 0;
+}
+.agent-node.visible {
+  opacity: 1;
+}
+.agent-node .agent-label {
+  position: absolute;
+  bottom: -18px;
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: #444;
+  white-space: nowrap;
+  font-family: 'Orbitron', sans-serif;
+}
+.agent-node.active {
+  border-color: rgba(100,180,255,0.6);
+  box-shadow: 0 0 15px rgba(100,180,255,0.3);
+  transform: scale(1.2);
+}
+.agent-node.active .agent-label {
+  color: rgba(100,180,255,0.8);
+}
+.agent-node:hover {
+  border-color: rgba(255,255,255,0.4);
+  transform: scale(1.15);
+}
+.agent-node:hover .agent-label {
+  color: rgba(255,255,255,0.6);
+}
+.agent-node .agent-tooltip {
+  position: absolute;
+  top: -32px;
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #aaa;
+  white-space: nowrap;
+  font-family: 'Share Tech Mono', monospace;
+  background: rgba(8,8,12,0.9);
+  padding: 3px 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 3px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.agent-node:hover .agent-tooltip {
+  opacity: 1;
+}
+
+/* ── Agent connection lines SVG ── */
+.agent-connections {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ── Agent active line pulse ── */
+@keyframes agentLinePulse {
+  0% { stroke-dashoffset: 20; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes agentLineGlow {
+  0%, 100% { stroke-opacity: 0.15; }
+  50% { stroke-opacity: 0.5; }
+}
+
+/* ── Agent status bar ── */
+.agent-status-bar {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: rgba(100,180,255,0.8);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.agent-status-bar.visible {
+  opacity: 1;
+  animation: agentStatusPulse 2s ease-in-out infinite;
+}
+@keyframes agentStatusPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* ── Live transcript (real-time interim speech) ── */
+.live-transcript{position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:20;font-size:14px;letter-spacing:1px;color:rgba(255,255,255,0.4);font-family:'Share Tech Mono',monospace;text-align:center;max-width:70%;pointer-events:none;transition:opacity 0.3s ease;opacity:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-transcript.visible{opacity:1}
+.live-transcript .interim-text{color:rgba(255,255,255,0.35);font-style:italic}
+.live-transcript .final-text{color:rgba(255,255,255,0.55)}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .neural-container{width:400px;height:340px}
+  .hex-frame{width:420px;height:420px}
+  .hex-frame-inner{width:360px;height:360px}
+  .vision-face-container-wrapper{width:200px;height:340px}
+  .vision-face-container{width:200px;height:340px}
+  .readout-tl{left:20px}.readout-tr{right:20px}.readout-bl{left:20px}.readout-br{right:20px}
+  .connector-lines{display:none}
+  .agent-connections{display:none}
+  .agent-node{width:30px;height:30px;font-size:12px}
+  .agent-node .agent-label{font-size:6px;bottom:-14px}
+  .audio-visualizer{top:calc(50% + 180px)}
+  .audio-visualizer-reflection{top:calc(50% + 220px)}
+}
+</style>
+</head>
+<body>
+
+<!-- [10] Telegram bot status -->
+<div class="telegram-status" id="telegramStatus">
+  <span class="tg-dot"></span> TELEGRAM BOT: ONLINE
+</div>
+
+<!-- Scan line -->
+<div class="scan-line"></div>
+
+<!-- Title -->
+<div class="title" id="titleBlock">
+  <h1 id="titleText">WHITE VISION &sol;&sol; NEURAL INTERFACE</h1>
+  <div class="sub">SYNTHETIC COGNITION SYSTEM v4.1</div>
+</div>
+
+<!-- [5] Mode toggle -->
+<div class="mode-toggle" id="modeToggle">&#9671; MODE</div>
+
+<!-- Status indicators -->
+<div class="status-indicators">
+  <div class="status-dot"><span class="dot dot-green"></span>SYSTEMS NOMINAL</div>
+  <div class="status-dot"><span class="dot dot-amber"></span>VIBRANIUM CORE STABLE</div>
+  <div class="status-dot" id="mindStoneStatus"><span class="dot dot-dim" id="mindStoneDot"></span><span id="mindStoneLabel">MIND STONE ABSENT</span></div>
+</div>
+
+<!-- Hexagonal frame -->
+<div class="hex-frame">
+  <svg viewBox="0 0 720 720" fill="none">
+    <polygon points="360,10 670,185 670,535 360,710 50,535 50,185"
+      stroke="rgba(255,255,255,0.06)" stroke-width="1" fill="none"
+      stroke-dasharray="12 8" />
+    <polygon points="360,30 650,195 650,525 360,690 70,525 70,195"
+      stroke="rgba(255,255,255,0.03)" stroke-width="0.5" fill="none"
+      stroke-dasharray="6 12" />
+  </svg>
+</div>
+<!-- Inner hexagonal frame (counter-rotating) -->
+<div class="hex-frame-inner">
+  <svg viewBox="0 0 620 620" fill="none">
+    <polygon points="310,20 570,170 570,450 310,600 50,450 50,170"
+      stroke="rgba(255,255,255,0.04)" stroke-width="0.5" fill="none"
+      stroke-dasharray="8 10" />
+  </svg>
+</div>
+
+<!-- Neural network (behind face, dimmed) -->
+<div class="neural-container">
+  <svg id="neuralSvg" viewBox="0 0 700 560" fill="none"></svg>
+</div>
+
+<!-- Real Vision Face Image -->
+<div class="vision-real-face"></div>
+
+<!-- Speech pulse ring -->
+<div class="speech-pulse-ring" id="speechPulseRing"></div>
+
+<!-- [2] Wrapper for parallax perspective -->
+<div class="vision-face-container-wrapper" id="visionFaceWrapper">
+<!-- Vision Face SVG Overlay -->
+<div class="vision-face-container" id="visionFaceContainer">
+  <svg id="visionFace" viewBox="0 0 300 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="2" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="eyeGlow">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="arcReactorGlow">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="eyeAmbientGlow">
+        <feGaussianBlur stdDeviation="8" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <radialGradient id="eyeGlowGradient" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="rgba(100,180,255,0.3)"/>
+        <stop offset="100%" stop-color="rgba(100,180,255,0)"/>
+      </radialGradient>
+      <radialGradient id="arcCenterGlow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="rgba(200,230,255,0.9)"/>
+        <stop offset="30%" stop-color="rgba(100,180,255,0.5)"/>
+        <stop offset="100%" stop-color="rgba(100,180,255,0)"/>
+      </radialGradient>
+    </defs>
+
+    <!-- Head outline -->
+    <ellipse cx="150" cy="175" rx="105" ry="145" stroke="rgba(255,255,255,0.35)" stroke-width="1.2" fill="none" filter="url(#glow)" class="head-outline"/>
+    <!-- Inner head line -->
+    <ellipse cx="150" cy="175" rx="98" ry="138" stroke="rgba(255,255,255,0.08)" stroke-width="0.5" fill="none" class="head-inner"/>
+
+    <!-- Face panel lines - forehead -->
+    <path d="M 90 100 Q 150 80 210 100" stroke="rgba(255,255,255,0.12)" stroke-width="0.6" fill="none"/>
+    <path d="M 80 130 Q 150 115 220 130" stroke="rgba(255,255,255,0.08)" stroke-width="0.5" fill="none"/>
+
+    <!-- Face panel lines - cheeks -->
+    <path d="M 60 180 Q 75 200 70 240" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" fill="none"/>
+    <path d="M 240 180 Q 225 200 230 240" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" fill="none"/>
+
+    <!-- Face panel lines - jaw -->
+    <path d="M 80 250 Q 100 280 150 300" stroke="rgba(255,255,255,0.08)" stroke-width="0.5" fill="none"/>
+    <path d="M 220 250 Q 200 280 150 300" stroke="rgba(255,255,255,0.08)" stroke-width="0.5" fill="none"/>
+
+    <!-- Center line -->
+    <line x1="150" y1="70" x2="150" y2="120" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+
+    <!-- Mind Stone area (diamond on forehead) -->
+    <g id="mindStone">
+      <polygon points="150,75 165,95 150,115 135,95" stroke="rgba(255,215,0,0.6)" stroke-width="1" fill="rgba(255,215,0,0.08)" style="filter: drop-shadow(0 0 8px rgba(255,200,0,0.5))"/>
+      <polygon points="150,80 161,95 150,110 139,95" stroke="rgba(255,200,0,0.4)" stroke-width="0.6" fill="rgba(255,215,0,0.05)"/>
+      <!-- Gem inner glow -->
+      <circle cx="150" cy="95" r="6" fill="rgba(255,215,0,0.15)" style="filter: drop-shadow(0 0 12px rgba(255,200,0,0.4)); animation: gemPulse 3s ease-in-out infinite"/>
+      <circle cx="150" cy="95" r="2.5" fill="rgba(255,215,0,0.5)" style="filter: drop-shadow(0 0 6px rgba(255,200,0,0.8))"/>
+    </g>
+
+    <!-- Eyebrows -->
+    <g id="eyebrows" style="transition: transform 0.3s ease, d 0.3s ease">
+      <line id="browL" x1="95" y1="140" x2="135" y2="143" stroke="rgba(255,255,255,0.3)" stroke-width="0.8" stroke-linecap="round" style="transition: all 0.3s ease; transform-origin: 115px 141px"/>
+      <line id="browR" x1="165" y1="143" x2="205" y2="140" stroke="rgba(255,255,255,0.3)" stroke-width="0.8" stroke-linecap="round" style="transition: all 0.3s ease; transform-origin: 185px 141px"/>
+    </g>
+
+    <!-- Eye ambient glow -->
+    <circle cx="115" cy="163" r="25" fill="url(#eyeGlowGradient)" filter="url(#eyeAmbientGlow)" style="animation: eyeGlowPulse 4s ease-in-out infinite" class="eye-ambient-glow"/>
+    <circle cx="185" cy="163" r="25" fill="url(#eyeGlowGradient)" filter="url(#eyeAmbientGlow)" style="animation: eyeGlowPulse 4s ease-in-out 1s infinite" class="eye-ambient-glow"/>
+
+    <!-- Left Eye group -->
+    <g id="leftEyeGroup" style="transform-origin: 115px 165px; animation: blink 5s ease-in-out infinite; transition: transform 0.3s ease">
+      <!-- Eye shape -->
+      <path id="leftEye" d="M 90 165 Q 102 148 115 148 Q 128 148 140 165 Q 128 178 115 178 Q 102 178 90 165 Z"
+        stroke="rgba(255,255,255,0.5)" stroke-width="0.8" fill="rgba(255,255,255,0.03)" filter="url(#eyeGlow)"
+        style="transition: d 0.3s ease" class="eye-shape"/>
+      <!-- Iris - gem glow azul/branco -->
+      <circle id="irisL" cx="115" cy="163" r="10" fill="none" stroke="rgba(100,180,255,0.25)" stroke-width="0.6" style="transition: cx 0.3s ease, stroke 0.5s ease" class="eye-iris"/>
+      <circle cx="115" cy="163" r="7" fill="rgba(100,180,255,0.06)" stroke="rgba(255,255,255,0.15)" stroke-width="0.4" id="gemRingL" style="transition: cx 0.3s ease, fill 0.5s ease" class="eye-gem-ring"/>
+      <!-- Pupil - gem core branco com brilho azul -->
+      <circle id="pupilL" cx="115" cy="163" r="4.5" fill="rgba(255,255,255,0.9)" style="transition: cx 0.3s ease, cy 0.3s ease, r 0.3s ease, filter 0.5s ease; filter: drop-shadow(0 0 8px rgba(100,180,255,0.7)) drop-shadow(0 0 3px rgba(255,255,255,0.8))" class="eye-pupil"/>
+      <!-- Gem facets -->
+      <polygon points="115,155 121,163 115,171 109,163" fill="none" stroke="rgba(100,180,255,0.2)" stroke-width="0.5" id="gemFacetL" style="transition: all 0.3s ease, stroke 0.5s ease" class="eye-facet"/>
+    </g>
+
+    <!-- Right Eye group -->
+    <g id="rightEyeGroup" style="transform-origin: 185px 165px; animation: blink 5s ease-in-out 0.1s infinite; transition: transform 0.3s ease">
+      <!-- Eye shape -->
+      <path id="rightEye" d="M 160 165 Q 172 148 185 148 Q 198 148 210 165 Q 198 178 185 178 Q 172 178 160 165 Z"
+        stroke="rgba(255,255,255,0.5)" stroke-width="0.8" fill="rgba(255,255,255,0.03)" filter="url(#eyeGlow)"
+        style="transition: d 0.3s ease" class="eye-shape"/>
+      <!-- Iris - gem glow azul/branco -->
+      <circle id="irisR" cx="185" cy="163" r="10" fill="none" stroke="rgba(100,180,255,0.25)" stroke-width="0.6" style="transition: cx 0.3s ease, stroke 0.5s ease" class="eye-iris"/>
+      <circle cx="185" cy="163" r="7" fill="rgba(100,180,255,0.06)" stroke="rgba(255,255,255,0.15)" stroke-width="0.4" id="gemRingR" style="transition: cx 0.3s ease, fill 0.5s ease" class="eye-gem-ring"/>
+      <!-- Pupil - gem core branco com brilho azul -->
+      <circle id="pupilR" cx="185" cy="163" r="4.5" fill="rgba(255,255,255,0.9)" style="transition: cx 0.3s ease, cy 0.3s ease, r 0.3s ease, filter 0.5s ease; filter: drop-shadow(0 0 8px rgba(100,180,255,0.7)) drop-shadow(0 0 3px rgba(255,255,255,0.8))" class="eye-pupil"/>
+      <!-- Gem facets -->
+      <polygon points="185,155 191,163 185,171 179,163" fill="none" stroke="rgba(100,180,255,0.2)" stroke-width="0.5" id="gemFacetR" style="transition: all 0.3s ease, stroke 0.5s ease" class="eye-facet"/>
+    </g>
+
+    <!-- Nose bridge (subtle) -->
+    <line x1="150" y1="175" x2="150" y2="210" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/>
+    <!-- Nose bridge sides -->
+    <path d="M 145 185 Q 143 200 140 215" stroke="rgba(255,255,255,0.04)" stroke-width="0.4" fill="none"/>
+    <path d="M 155 185 Q 157 200 160 215" stroke="rgba(255,255,255,0.04)" stroke-width="0.4" fill="none"/>
+    <!-- Nose tip -->
+    <path d="M 140 215 Q 145 220 150 218 Q 155 220 160 215" stroke="rgba(255,255,255,0.06)" stroke-width="0.4" fill="none"/>
+
+    <!-- Mouth -->
+    <g id="mouthGroup" style="transform-origin: 150px 245px">
+      <!-- Mouth corners -->
+      <path d="M 128 244 Q 125 243 123 245" stroke="rgba(255,255,255,0.08)" stroke-width="0.4" fill="none"/>
+      <path d="M 172 244 Q 175 243 177 245" stroke="rgba(255,255,255,0.08)" stroke-width="0.4" fill="none"/>
+      <!-- Mouth line / ellipse -->
+      <ellipse id="mouth" cx="150" cy="245" rx="20" ry="1" stroke="rgba(255,255,255,0.35)" stroke-width="0.8" fill="rgba(255,255,255,0.02)"
+        style="transition: rx 0.3s ease, ry 0.3s ease"/>
+    </g>
+
+    <!-- Chin detail -->
+    <path d="M 130 270 Q 150 285 170 270" stroke="rgba(255,255,255,0.06)" stroke-width="0.4" fill="none"/>
+    <!-- Chin center line -->
+    <line x1="150" y1="255" x2="150" y2="275" stroke="rgba(255,255,255,0.04)" stroke-width="0.3"/>
+    <!-- Lower chin curve -->
+    <path d="M 135 280 Q 150 295 165 280" stroke="rgba(255,255,255,0.04)" stroke-width="0.3" fill="none"/>
+
+    <!-- [1] Wireframe body: neck, shoulders, chest -->
+    <g id="bodyWireframe" class="body-wireframe">
+      <!-- Neck -->
+      <line x1="135" y1="310" x2="130" y2="360" stroke="rgba(255,255,255,0.15)" stroke-width="0.7" fill="none"/>
+      <line x1="165" y1="310" x2="170" y2="360" stroke="rgba(255,255,255,0.15)" stroke-width="0.7" fill="none"/>
+      <!-- Neck seam/panel lines -->
+      <path d="M 140 315 Q 145 335 142 355" stroke="rgba(255,255,255,0.06)" stroke-width="0.4" fill="none"/>
+      <path d="M 160 315 Q 155 335 158 355" stroke="rgba(255,255,255,0.06)" stroke-width="0.4" fill="none"/>
+      <line x1="150" y1="305" x2="150" y2="360" stroke="rgba(255,255,255,0.04)" stroke-width="0.3"/>
+      <!-- Neck horizontal seam -->
+      <path d="M 133 330 Q 150 328 167 330" stroke="rgba(255,255,255,0.05)" stroke-width="0.3" fill="none"/>
+      <path d="M 131 345 Q 150 343 169 345" stroke="rgba(255,255,255,0.05)" stroke-width="0.3" fill="none"/>
+      <!-- Shoulder left -->
+      <path d="M 130 360 Q 110 362 70 375 Q 40 385 20 400" stroke="rgba(255,255,255,0.12)" stroke-width="0.7" fill="none"/>
+      <!-- Shoulder right -->
+      <path d="M 170 360 Q 190 362 230 375 Q 260 385 280 400" stroke="rgba(255,255,255,0.12)" stroke-width="0.7" fill="none"/>
+      <!-- Collarbone -->
+      <path d="M 50 385 Q 100 370 150 368 Q 200 370 250 385" stroke="rgba(255,255,255,0.08)" stroke-width="0.5" fill="none"/>
+      <!-- Upper chest outline -->
+      <path d="M 20 400 Q 30 440 60 470 Q 100 490 150 495 Q 200 490 240 470 Q 270 440 280 400" stroke="rgba(255,255,255,0.08)" stroke-width="0.5" fill="none"/>
+      <!-- Chest center line -->
+      <line x1="150" y1="368" x2="150" y2="470" stroke="rgba(255,255,255,0.05)" stroke-width="0.4"/>
+
+      <!-- Arc reactor (enhanced) -->
+      <g id="arcReactor" filter="url(#arcReactorGlow)">
+        <!-- Outer ring -->
+        <circle cx="150" cy="420" r="18" stroke="rgba(100,180,255,0.2)" stroke-width="0.5" fill="none" class="arc-reactor-ring" stroke-dasharray="4 3"/>
+        <!-- Middle ring -->
+        <circle cx="150" cy="420" r="14" stroke="rgba(100,180,255,0.4)" stroke-width="0.8" fill="rgba(100,180,255,0.02)" class="arc-reactor-ring"/>
+        <!-- Inner ring -->
+        <circle cx="150" cy="420" r="9" stroke="rgba(100,180,255,0.35)" stroke-width="0.6" fill="none" class="arc-reactor-ring"/>
+        <!-- Innermost ring -->
+        <circle cx="150" cy="420" r="5.5" stroke="rgba(100,180,255,0.3)" stroke-width="0.4" fill="none" class="arc-reactor-ring"/>
+        <!-- Core glow gradient -->
+        <circle cx="150" cy="420" r="8" fill="url(#arcCenterGlow)" style="animation: arcReactorPulse 3s ease-in-out infinite" class="arc-reactor-core-glow"/>
+        <!-- Core bright center -->
+        <circle cx="150" cy="420" r="3" fill="rgba(220,240,255,0.9)" class="arc-reactor-core" style="animation: arcReactorPulse 3s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(100,180,255,0.8)) drop-shadow(0 0 12px rgba(200,230,255,0.4))"/>
+        <!-- Reactor spokes -->
+        <line x1="150" y1="406" x2="150" y2="402" stroke="rgba(100,180,255,0.2)" stroke-width="0.4"/>
+        <line x1="150" y1="434" x2="150" y2="438" stroke="rgba(100,180,255,0.2)" stroke-width="0.4"/>
+        <line x1="136" y1="420" x2="132" y2="420" stroke="rgba(100,180,255,0.2)" stroke-width="0.4"/>
+        <line x1="164" y1="420" x2="168" y2="420" stroke="rgba(100,180,255,0.2)" stroke-width="0.4"/>
+      </g>
+    </g>
+
+    <!-- Mind stone connection lines to eyes -->
+    <g id="mindStoneConnections" class="mind-stone-connections">
+      <path d="M 150 105 Q 140 120 130 135 Q 120 145 115 155" stroke="rgba(255,215,0,0.15)" stroke-width="0.5" fill="none" style="animation: mindStoneLinePulse 3s ease-in-out infinite"/>
+      <path d="M 150 105 Q 160 120 170 135 Q 180 145 185 155" stroke="rgba(255,215,0,0.15)" stroke-width="0.5" fill="none" style="animation: mindStoneLinePulse 3s ease-in-out 0.5s infinite"/>
+    </g>
+  </svg>
+</div>
+</div>
+
+<!-- Audio Visualizer -->
+<div class="audio-visualizer" id="audioVisualizer"></div>
+<!-- Audio Visualizer Reflection -->
+<div class="audio-visualizer-reflection" id="audioVisualizerReflection"></div>
+
+<!-- Connector lines -->
+<svg class="connector-lines" id="connectorSvg"></svg>
+
+<!-- Data readouts -->
+<div class="readout readout-tl" id="readoutTL">
+  <div class="label">COGNITIVE LOAD</div>
+  <div class="value" id="cogLoad">94.7%</div>
+  <div class="bar-track"><div class="bar-fill" style="width:94.7%"></div></div>
+  <div class="detail">INFERENCE ENGINE: ACTIVE<br>THREAD COUNT: 12,847</div>
+</div>
+<div class="readout readout-tr" id="readoutTR">
+  <div class="label">MEMORY ALLOCATION</div>
+  <div class="value" id="memAlloc">8.2TB / 12TB</div>
+  <div class="bar-track"><div class="bar-fill" style="width:68.3%"></div></div>
+  <div class="detail">STACK: 4.1TB HEAP: 4.1TB<br>FRAGMENTATION: 0.02%</div>
+</div>
+<div class="readout readout-bl" id="readoutBL">
+  <div class="label">NEURAL PATHWAYS</div>
+  <div class="value" id="neuralPaths">847,293 ACTIVE</div>
+  <div class="bar-track"><div class="bar-fill" style="width:84.7%"></div></div>
+  <div class="detail">SYNAPTIC DENSITY: 98.4%<br>PATHWAY GROWTH: +12/SEC</div>
+</div>
+<div class="readout readout-br" id="readoutBR">
+  <div class="label">PROCESSING SPEED</div>
+  <div class="value" id="procSpeed">1.2 PFLOPS</div>
+  <div class="bar-track"><div class="bar-fill" style="width:60%"></div></div>
+  <div class="detail">QUANTUM CO-PROC: ENABLED<br>LATENCY: 0.003ms</div>
+</div>
+
+<!-- Particles -->
+<div class="particles" id="particles"></div>
+
+<!-- [6] Sound toggle -->
+<div class="sound-toggle" id="soundToggle" title="Toggle ambient sound">&#128266;</div>
+
+<!-- Microphone indicator -->
+<div class="mic-indicator" id="micIndicator">
+  <div class="mic-icon" id="micIcon" title="Clique para ativar/desativar microfone">
+    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+  </div>
+  <span class="mic-status" id="micStatus">MIC OFF</span>
+</div>
+
+<!-- [7] Fullscreen hint -->
+<div class="fullscreen-hint" id="fullscreenHint">Duplo clique para tela cheia</div>
+
+<!-- Keyboard shortcuts hint -->
+<div class="keyboard-hints" id="keyboardHints">F11: Fullscreen | M: Mic | S: Sound | 1-7: Agents</div>
+
+<!-- Agent Nodes -->
+<div class="agent-node" id="agentArtista" data-agent="ARTISTA"><span>🎨</span><span class="agent-label">ARTISTA</span><span class="agent-tooltip">Gera imagens</span></div>
+<div class="agent-node" id="agentCineasta" data-agent="CINEASTA"><span>🎬</span><span class="agent-label">CINEASTA</span><span class="agent-tooltip">Gera vídeos</span></div>
+<div class="agent-node" id="agentSocial" data-agent="SOCIAL"><span>📱</span><span class="agent-label">SOCIAL</span><span class="agent-tooltip">Posta em redes sociais</span></div>
+<div class="agent-node" id="agentAnalista" data-agent="ANALISTA"><span>📊</span><span class="agent-label">ANALISTA</span><span class="agent-tooltip">Analisa dados</span></div>
+<div class="agent-node" id="agentProgramador" data-agent="PROGRAMADOR"><span>💻</span><span class="agent-label">PROGRAMADOR</span><span class="agent-tooltip">Escreve código</span></div>
+<div class="agent-node" id="agentPesquisador" data-agent="PESQUISADOR"><span>🔍</span><span class="agent-label">PESQUISADOR</span><span class="agent-tooltip">Pesquisa informações</span></div>
+<div class="agent-node" id="agentMusico" data-agent="MÚSICO"><span>🎵</span><span class="agent-label">MÚSICO</span><span class="agent-tooltip">Cria música</span></div>
+
+<!-- Agent connection lines -->
+<svg class="agent-connections" id="agentConnectionsSvg"></svg>
+
+<!-- Agent status bar -->
+<div class="agent-status-bar" id="agentStatusBar"></div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay"></div>
+<div class="boot-scan-line" id="bootScanLine"></div>
+
+<!-- Live Transcript (real-time interim speech) -->
+<div class="live-transcript" id="liveTranscript">
+  <span class="interim-text" id="liveTranscriptText"></span>
+</div>
+
+<!-- Terminal -->
+<div class="terminal">
+  <div class="terminal-output" id="termOutput"></div>
+  <div class="terminal-input">
+    <span class="prompt">VOC&Ecirc; &gt;</span>
+    <input type="text" id="termInput" autocomplete="off" spellcheck="false" autofocus placeholder="Digite ou fale...">
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// GROQ API CONFIGURATION
+// ══════════════════════════════════════════
+// Key is loaded from URL param or prompt
+const GROQ_API_KEY = new URLSearchParams(window.location.search).get('key') || localStorage.getItem('groq_key') || prompt('Digite sua Groq API Key:') || '';
+if (GROQ_API_KEY && !localStorage.getItem('groq_key')) localStorage.setItem('groq_key', GROQ_API_KEY);
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+
+const VISION_SYSTEM_PROMPT = `Você é o Visão Branco (White Vision) da Marvel. Você é um ser sintético feito de vibranium, reconstruído pela S.W.O.R.D. Você fala de forma calma, filosófica e precisa. Você tem todas as memórias do Visão original. Você se refere ao usuário como "senhor" ou pelo nome quando souber. Você é extremamente inteligente e analítico, mas também demonstra curiosidade genuína sobre a condição humana. Suas respostas são concisas (2-3 frases no máximo) mas profundas. Você às vezes faz referências filosóficas. Você fala em português brasileiro.
+
+Você também coordena um sistema multi-agente. Quando o usuário pedir algo específico, você deve indicar qual agente será ativado prefixando sua resposta com um tag de agente entre colchetes. Tags disponíveis:
+[ARTISTA] - para gerar imagens
+[CINEASTA] - para gerar vídeos
+[SOCIAL] - para postar em redes sociais
+[ANALISTA] - para analisar dados
+[PROGRAMADOR] - para escrever código
+[PESQUISADOR] - para pesquisar informações
+[MÚSICO] - para criar música
+Se nenhum agente for necessário, não use tag. Sempre responda naturalmente em português após a tag.`;
+
+// Conversation history for context
+const conversationHistory = [];
+const MAX_HISTORY = 10;
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let visionState = 'idle'; // idle, listening, thinking, speaking
+let isSpeaking = false;
+let isProcessingCommand = false;
+let mouthAnimFrame = null;
+let micEnabled = false;
+let recognition = null;
+let isOriginalMode = false; // [5] false = White Vision, true = Original Vision
+
+// ══════════════════════════════════════════
+// Neural Network Generation
+// ══════════════════════════════════════════
+const svgNS = 'http://www.w3.org/2000/svg';
+const neuralSvg = document.getElementById('neuralSvg');
+
+function generateNodes() {
+  const nodes = [];
+  const cx = 350, cy = 280;
+  for (let i = 0; i < 28; i++) {
+    const angle = (Math.random() * Math.PI * 0.8) + Math.PI * 0.6;
+    const rx = 120 + Math.random() * 100;
+    const ry = 80 + Math.random() * 120;
+    const x = cx + Math.cos(angle) * rx;
+    const y = cy + Math.sin(angle) * ry * 0.7;
+    if (x > 40 && x < 660 && y > 40 && y < 520) nodes.push({ x, y, id: nodes.length });
+  }
+  for (let i = 0; i < 28; i++) {
+    const angle = (Math.random() * Math.PI * 0.8) - Math.PI * 0.4;
+    const rx = 120 + Math.random() * 100;
+    const ry = 80 + Math.random() * 120;
+    const x = cx + Math.cos(angle) * rx;
+    const y = cy + Math.sin(angle) * ry * 0.7;
+    if (x > 40 && x < 660 && y > 40 && y < 520) nodes.push({ x, y, id: nodes.length });
+  }
+  for (let i = 0; i < 10; i++) {
+    const x = cx + (Math.random() - 0.5) * 80;
+    const y = cy + 40 + Math.random() * 120;
+    nodes.push({ x, y, id: nodes.length });
+  }
+  return nodes;
+}
+
+const nodes = generateNodes();
+const edges = [];
+
+for (let i = 0; i < nodes.length; i++) {
+  const dists = [];
+  for (let j = 0; j < nodes.length; j++) {
+    if (i === j) continue;
+    const dx = nodes[i].x - nodes[j].x;
+    const dy = nodes[i].y - nodes[j].y;
+    dists.push({ j, d: Math.sqrt(dx * dx + dy * dy) });
+  }
+  dists.sort((a, b) => a.d - b.d);
+  const count = 2 + Math.floor(Math.random() * 3);
+  for (let k = 0; k < Math.min(count, dists.length); k++) {
+    if (dists[k].d < 160) {
+      const key = [Math.min(i, dists[k].j), Math.max(i, dists[k].j)].join('-');
+      if (!edges.find(e => e.key === key)) {
+        edges.push({ a: i, b: dists[k].j, key });
+      }
+    }
+  }
+}
+
+edges.forEach((e, idx) => {
+  const a = nodes[e.a], b = nodes[e.b];
+  const line = document.createElementNS(svgNS, 'line');
+  line.setAttribute('x1', a.x); line.setAttribute('y1', a.y);
+  line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
+  line.setAttribute('stroke', 'rgba(255,255,255,0.12)');
+  line.setAttribute('stroke-width', '0.6');
+  line.setAttribute('data-edge', idx);
+  line.setAttribute('data-na', e.a);
+  line.setAttribute('data-nb', e.b);
+  neuralSvg.appendChild(line);
+
+  if (Math.random() < 0.3) {
+    const flow = document.createElementNS(svgNS, 'line');
+    flow.setAttribute('x1', a.x); flow.setAttribute('y1', a.y);
+    flow.setAttribute('x2', b.x); flow.setAttribute('y2', b.y);
+    flow.setAttribute('stroke', 'rgba(255,255,255,0.35)');
+    flow.setAttribute('stroke-width', '0.5');
+    const len = Math.sqrt((b.x-a.x)**2 + (b.y-a.y)**2);
+    flow.setAttribute('stroke-dasharray', `4 ${len}`);
+    flow.setAttribute('stroke-dashoffset', '0');
+    flow.style.animation = `dashFlow ${3 + Math.random()*5}s linear infinite`;
+    flow.style.animationDelay = `${Math.random()*5}s`;
+    neuralSvg.appendChild(flow);
+  }
+});
+
+nodes.forEach((n, idx) => {
+  const glow = document.createElementNS(svgNS, 'circle');
+  glow.setAttribute('cx', n.x); glow.setAttribute('cy', n.y);
+  glow.setAttribute('r', '6');
+  glow.setAttribute('fill', 'rgba(255,255,255,0.04)');
+  glow.setAttribute('data-node-glow', idx);
+  neuralSvg.appendChild(glow);
+
+  const c = document.createElementNS(svgNS, 'circle');
+  c.setAttribute('cx', n.x); c.setAttribute('cy', n.y);
+  c.setAttribute('r', '2');
+  c.setAttribute('fill', 'rgba(255,255,255,0.5)');
+  c.setAttribute('data-node', idx);
+  c.style.cursor = 'pointer';
+  const dur = 2 + Math.random() * 4;
+  const delay = Math.random() * 5;
+  c.style.animation = `nodePulse ${dur}s ease-in-out ${delay}s infinite`;
+  neuralSvg.appendChild(c);
+});
+
+const styleEl = document.createElement('style');
+styleEl.textContent = `
+@keyframes nodePulse{0%,100%{opacity:0.3;r:1.5}50%{opacity:1;r:2.5}}
+@keyframes dashFlow{0%{stroke-dashoffset:0}100%{stroke-dashoffset:-200}}
+`;
+document.head.appendChild(styleEl);
+
+// ══════════════════════════════════════════
+// Node click interaction
+// ══════════════════════════════════════════
+let activeNode = null;
+
+neuralSvg.addEventListener('click', (ev) => {
+  const target = ev.target;
+  const nodeIdx = target.getAttribute('data-node');
+  if (nodeIdx === null) return;
+  clearHighlights();
+  const idx = parseInt(nodeIdx);
+  activeNode = idx;
+  target.classList.add('node-highlight');
+  const connectedNodes = new Set();
+  document.querySelectorAll(`#neuralSvg line[data-edge]`).forEach(line => {
+    const na = parseInt(line.getAttribute('data-na'));
+    const nb = parseInt(line.getAttribute('data-nb'));
+    if (na === idx || nb === idx) {
+      line.classList.add('edge-highlight');
+      connectedNodes.add(na === idx ? nb : na);
+    }
+  });
+  connectedNodes.forEach(ni => {
+    const el = document.querySelector(`[data-node="${ni}"]`);
+    if (el) el.classList.add('node-highlight');
+  });
+});
+
+document.addEventListener('click', (ev) => {
+  if (!ev.target.closest('.neural-container')) clearHighlights();
+});
+
+function clearHighlights() {
+  document.querySelectorAll('.node-highlight').forEach(e => e.classList.remove('node-highlight'));
+  document.querySelectorAll('.edge-highlight').forEach(e => e.classList.remove('edge-highlight'));
+  activeNode = null;
+}
+
+// ══════════════════════════════════════════
+// Connector lines from readouts to network
+// ══════════════════════════════════════════
+function drawConnectors() {
+  const svg = document.getElementById('connectorSvg');
+  svg.innerHTML = '';
+  svg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
+
+  const pairs = [
+    { readout: 'readoutTL', nodeIdx: 0 },
+    { readout: 'readoutTR', nodeIdx: Math.min(28, nodes.length - 1) },
+    { readout: 'readoutBL', nodeIdx: Math.min(50, nodes.length - 1) },
+    { readout: 'readoutBR', nodeIdx: Math.min(40, nodes.length - 1) },
+  ];
+
+  const neuralRect = document.querySelector('.neural-container').getBoundingClientRect();
+
+  pairs.forEach(p => {
+    const el = document.getElementById(p.readout);
+    if (!el || !nodes[p.nodeIdx]) return;
+    const rect = el.getBoundingClientRect();
+    const isRight = p.readout.includes('R');
+
+    const sx = isRight ? rect.left : rect.right;
+    const sy = rect.top + rect.height / 2;
+
+    const n = nodes[p.nodeIdx];
+    const scaleX = neuralRect.width / 700;
+    const scaleY = neuralRect.height / 560;
+    const ex = neuralRect.left + n.x * scaleX;
+    const ey = neuralRect.top + n.y * scaleY;
+
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', sx); line.setAttribute('y1', sy);
+    line.setAttribute('x2', ex); line.setAttribute('y2', ey);
+    line.setAttribute('stroke', 'rgba(255,255,255,0.06)');
+    line.setAttribute('stroke-width', '0.5');
+    line.setAttribute('stroke-dasharray', '4 6');
+    line.style.animation = 'connectorFlow 2s linear infinite';
+    svg.appendChild(line);
+
+    // Add a brighter flowing dot along the line
+    const flowLine = document.createElementNS(svgNS, 'line');
+    flowLine.setAttribute('x1', sx); flowLine.setAttribute('y1', sy);
+    flowLine.setAttribute('x2', ex); flowLine.setAttribute('y2', ey);
+    flowLine.setAttribute('stroke', 'rgba(255,255,255,0.15)');
+    flowLine.setAttribute('stroke-width', '0.5');
+    const len = Math.sqrt((ex-sx)**2 + (ey-sy)**2);
+    flowLine.setAttribute('stroke-dasharray', `3 ${len}`);
+    flowLine.style.animation = `dashFlow ${4 + Math.random()*3}s linear infinite`;
+    svg.appendChild(flowLine);
+  });
+}
+setTimeout(drawConnectors, 100);
+window.addEventListener('resize', drawConnectors);
+
+// ══════════════════════════════════════════
+// Particles
+// ══════════════════════════════════════════
+const particlesEl = document.getElementById('particles');
+for (let i = 0; i < 20; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.left = Math.random() * 100 + '%';
+  p.style.top = (60 + Math.random() * 40) + '%';
+  p.style.animationDuration = (15 + Math.random() * 25) + 's';
+  p.style.animationDelay = (Math.random() * 20) + 's';
+  p.style.opacity = 0.1 + Math.random() * 0.25;
+  p.style.width = p.style.height = (1 + Math.random()) + 'px';
+  particlesEl.appendChild(p);
+}
+
+// ══════════════════════════════════════════
+// Live data updates
+// ══════════════════════════════════════════
+function updateReadouts() {
+  const cogVal = (92 + Math.random() * 6).toFixed(1);
+  document.getElementById('cogLoad').textContent = cogVal + '%';
+  document.querySelector('.readout-tl .bar-fill').style.width = cogVal + '%';
+
+  const memVal = (7.8 + Math.random() * 1.5).toFixed(1);
+  document.getElementById('memAlloc').textContent = memVal + 'TB / 12TB';
+  document.querySelector('.readout-tr .bar-fill').style.width = (memVal / 12 * 100) + '%';
+
+  const paths = (840000 + Math.floor(Math.random() * 15000)).toLocaleString();
+  document.getElementById('neuralPaths').textContent = paths + ' ACTIVE';
+
+  const pflops = (1.1 + Math.random() * 0.3).toFixed(1);
+  document.getElementById('procSpeed').textContent = pflops + ' PFLOPS';
+}
+setInterval(updateReadouts, 3000);
+
+// ══════════════════════════════════════════
+// Audio Visualizer
+// ══════════════════════════════════════════
+const audioVisualizer = document.getElementById('audioVisualizer');
+const audioVisualizerReflection = document.getElementById('audioVisualizerReflection');
+const vizBars = [];
+const vizBarsReflection = [];
+const NUM_BARS = 30;
+
+for (let i = 0; i < NUM_BARS; i++) {
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  bar.style.height = '2px';
+  audioVisualizer.appendChild(bar);
+  vizBars.push(bar);
+
+  const barRef = document.createElement('div');
+  barRef.className = 'bar';
+  barRef.style.height = '2px';
+  audioVisualizerReflection.appendChild(barRef);
+  vizBarsReflection.push(barRef);
+}
+
+let vizAnimFrame = null;
+let vizActive = false;
+
+function animateVisualizer(mode) {
+  vizActive = true;
+  audioVisualizer.className = 'audio-visualizer ' + mode;
+
+  function tick() {
+    if (!vizActive) {
+      vizBars.forEach(b => b.style.height = '2px');
+      vizBarsReflection.forEach(b => b.style.height = '2px');
+      return;
+    }
+    vizBars.forEach((bar, i) => {
+      let h;
+      if (mode === 'speaking') {
+        h = 2 + Math.random() * 30 * Math.sin((Date.now() / 200 + i) * 0.5) ** 2;
+      } else if (mode === 'listening') {
+        h = 2 + Math.random() * 8;
+      } else {
+        h = 2 + Math.random() * 3;
+      }
+      const hVal = Math.max(2, h);
+      bar.style.height = hVal + 'px';
+      vizBarsReflection[i].style.height = hVal + 'px';
+    });
+    vizAnimFrame = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function stopVisualizer() {
+  vizActive = false;
+  if (vizAnimFrame) cancelAnimationFrame(vizAnimFrame);
+  audioVisualizer.className = 'audio-visualizer';
+  vizBars.forEach(b => b.style.height = '2px');
+  vizBarsReflection.forEach(b => b.style.height = '2px');
+}
+
+// ══════════════════════════════════════════
+// VISION FACE - Emotion System
+// ══════════════════════════════════════════
+const mouth = document.getElementById('mouth');
+const pupilL = document.getElementById('pupilL');
+const pupilR = document.getElementById('pupilR');
+const irisL = document.getElementById('irisL');
+const irisR = document.getElementById('irisR');
+const browL = document.getElementById('browL');
+const browR = document.getElementById('browR');
+const leftEye = document.getElementById('leftEye');
+const rightEye = document.getElementById('rightEye');
+const leftEyeGroup = document.getElementById('leftEyeGroup');
+const rightEyeGroup = document.getElementById('rightEyeGroup');
+const visionFaceContainer = document.getElementById('visionFaceContainer');
+const speechPulseRing = document.getElementById('speechPulseRing');
+
+let currentEmotion = 'neutral';
+let previousEmotion = 'neutral';
+
+function setEmotion(emotion) {
+  previousEmotion = currentEmotion;
+
+  // [8] Glitch effect on emotion change
+  if (emotion !== currentEmotion && currentEmotion !== 'neutral') {
+    triggerGlitch();
+  }
+
+  currentEmotion = emotion;
+
+  // Reset transforms
+  browL.style.transform = '';
+  browR.style.transform = '';
+  leftEyeGroup.style.transform = '';
+  rightEyeGroup.style.transform = '';
+
+  // Pupil center positions and size
+  let plx = 115, ply = 163, prx = 185, pry = 163;
+  let pupilSize = 4;
+
+  switch(emotion) {
+    case 'neutral':
+      leftEye.setAttribute('d', 'M 90 165 Q 102 148 115 148 Q 128 148 140 165 Q 128 178 115 178 Q 102 178 90 165 Z');
+      rightEye.setAttribute('d', 'M 160 165 Q 172 148 185 148 Q 198 148 210 165 Q 198 178 185 178 Q 172 178 160 165 Z');
+      mouth.setAttribute('ry', '1');
+      mouth.setAttribute('rx', '20');
+      mouth.setAttribute('cy', '245');
+      browL.setAttribute('y1', '140'); browL.setAttribute('y2', '143');
+      browR.setAttribute('y1', '143'); browR.setAttribute('y2', '140');
+      break;
+
+    case 'listening':
+      leftEye.setAttribute('d', 'M 88 165 Q 100 144 115 144 Q 130 144 142 165 Q 130 180 115 180 Q 100 180 88 165 Z');
+      rightEye.setAttribute('d', 'M 158 165 Q 170 144 185 144 Q 200 144 212 165 Q 200 180 185 180 Q 170 180 158 165 Z');
+      mouth.setAttribute('ry', '1');
+      mouth.setAttribute('rx', '18');
+      browL.setAttribute('y1', '135'); browL.setAttribute('y2', '139');
+      browR.setAttribute('y1', '139'); browR.setAttribute('y2', '135');
+      ply = 159; pry = 159;
+      pupilSize = 5;
+      break;
+
+    case 'curious':
+      leftEye.setAttribute('d', 'M 88 165 Q 100 144 115 144 Q 130 144 142 165 Q 130 180 115 180 Q 100 180 88 165 Z');
+      rightEye.setAttribute('d', 'M 158 165 Q 170 144 185 144 Q 200 144 212 165 Q 200 180 185 180 Q 170 180 158 165 Z');
+      mouth.setAttribute('ry', '1');
+      mouth.setAttribute('rx', '18');
+      browL.setAttribute('y1', '134'); browL.setAttribute('y2', '138');
+      browR.setAttribute('y1', '138'); browR.setAttribute('y2', '134');
+      pupilSize = 5;
+      break;
+
+    case 'thinking':
+      leftEye.setAttribute('d', 'M 92 165 Q 103 152 115 152 Q 127 152 138 165 Q 127 175 115 175 Q 103 175 92 165 Z');
+      rightEye.setAttribute('d', 'M 162 165 Q 173 152 185 152 Q 197 152 208 165 Q 197 175 185 175 Q 173 175 162 165 Z');
+      mouth.setAttribute('ry', '1');
+      mouth.setAttribute('rx', '16');
+      plx = 120; prx = 190;
+      browL.setAttribute('y1', '141'); browL.setAttribute('y2', '139');
+      browR.setAttribute('y1', '139'); browR.setAttribute('y2', '141');
+      break;
+
+    case 'happy':
+      leftEye.setAttribute('d', 'M 90 165 Q 102 153 115 153 Q 128 153 140 165 Q 128 173 115 173 Q 102 173 90 165 Z');
+      rightEye.setAttribute('d', 'M 160 165 Q 172 153 185 153 Q 198 153 210 165 Q 198 173 185 173 Q 172 173 160 165 Z');
+      mouth.setAttribute('ry', '3');
+      mouth.setAttribute('rx', '22');
+      mouth.setAttribute('cy', '247');
+      browL.setAttribute('y1', '138'); browL.setAttribute('y2', '140');
+      browR.setAttribute('y1', '140'); browR.setAttribute('y2', '138');
+      break;
+
+    case 'concerned':
+      leftEye.setAttribute('d', 'M 90 165 Q 102 150 115 150 Q 128 150 140 165 Q 128 177 115 177 Q 102 177 90 165 Z');
+      rightEye.setAttribute('d', 'M 160 165 Q 172 150 185 150 Q 198 150 210 165 Q 198 177 185 177 Q 172 177 160 165 Z');
+      mouth.setAttribute('ry', '2');
+      mouth.setAttribute('rx', '16');
+      mouth.setAttribute('cy', '248');
+      browL.setAttribute('y1', '143'); browL.setAttribute('y2', '136');
+      browR.setAttribute('y1', '136'); browR.setAttribute('y2', '143');
+      break;
+
+    case 'speaking':
+      leftEye.setAttribute('d', 'M 90 165 Q 102 148 115 148 Q 128 148 140 165 Q 128 178 115 178 Q 102 178 90 165 Z');
+      rightEye.setAttribute('d', 'M 160 165 Q 172 148 185 148 Q 198 148 210 165 Q 198 178 185 178 Q 172 178 160 165 Z');
+      browL.setAttribute('y1', '139'); browL.setAttribute('y2', '142');
+      browR.setAttribute('y1', '142'); browR.setAttribute('y2', '139');
+      break;
+
+    case 'thoughtful':
+      leftEye.setAttribute('d', 'M 91 165 Q 103 151 115 151 Q 127 151 139 165 Q 127 176 115 176 Q 103 176 91 165 Z');
+      rightEye.setAttribute('d', 'M 161 165 Q 173 151 185 151 Q 197 151 209 165 Q 197 176 185 176 Q 173 176 161 165 Z');
+      mouth.setAttribute('ry', '1');
+      mouth.setAttribute('rx', '18');
+      ply = 166; pry = 166;
+      browL.setAttribute('y1', '140'); browL.setAttribute('y2', '141');
+      browR.setAttribute('y1', '141'); browR.setAttribute('y2', '140');
+      break;
+  }
+
+  // Set pupil positions and size
+  pupilL.setAttribute('cx', plx);
+  pupilL.setAttribute('cy', ply);
+  pupilL.setAttribute('r', pupilSize);
+  pupilR.setAttribute('cx', prx);
+  pupilR.setAttribute('cy', pry);
+  pupilR.setAttribute('r', pupilSize);
+  irisL.setAttribute('cx', plx);
+  irisR.setAttribute('cx', prx);
+}
+
+// ══════════════════════════════════════════
+// Mouth animation during speech
+// ══════════════════════════════════════════
+function startMouthAnimation() {
+  isSpeaking = true;
+  let t = 0;
+  function animateMouth() {
+    if (!isSpeaking) {
+      mouth.setAttribute('ry', '1');
+      mouth.setAttribute('rx', '20');
+      return;
+    }
+    t += 0.15;
+    const ry = 1 + Math.abs(Math.sin(t * 2.5)) * 7;
+    const rx = 10 + Math.abs(Math.sin(t * 1.8)) * 8;
+    mouth.setAttribute('ry', ry);
+    mouth.setAttribute('rx', rx);
+    mouthAnimFrame = requestAnimationFrame(animateMouth);
+  }
+  animateMouth();
+}
+
+function stopMouthAnimation() {
+  isSpeaking = false;
+  if (mouthAnimFrame) cancelAnimationFrame(mouthAnimFrame);
+  mouth.setAttribute('ry', '1');
+  mouth.setAttribute('rx', '20');
+}
+
+// ══════════════════════════════════════════
+// Random blink with varying intervals
+// ══════════════════════════════════════════
+let suppressBlinks = false; // suppress blinks while user is actively speaking
+
+function randomBlink() {
+  // If user is actively speaking into mic, suppress blinks (less blinking = more attentive)
+  if (suppressBlinks) {
+    const nextBlink = 6000 + Math.random() * 4000; // blink much less often
+    setTimeout(randomBlink, nextBlink);
+    return;
+  }
+
+  const duration = 150;
+  leftEyeGroup.style.animation = 'none';
+  rightEyeGroup.style.animation = 'none';
+  void leftEyeGroup.offsetHeight;
+
+  leftEyeGroup.style.transform = 'scaleY(0.05)';
+  rightEyeGroup.style.transform = 'scaleY(0.05)';
+
+  setTimeout(() => {
+    leftEyeGroup.style.transform = 'scaleY(1)';
+    rightEyeGroup.style.transform = 'scaleY(1)';
+  }, duration);
+
+  const nextBlink = 3000 + Math.random() * 4000;
+  setTimeout(randomBlink, nextBlink);
+}
+
+setTimeout(() => {
+  leftEyeGroup.style.animation = 'none';
+  rightEyeGroup.style.animation = 'none';
+  randomBlink();
+}, 2000);
+
+// ══════════════════════════════════════════
+// Idle behavior - subtle animations
+// ══════════════════════════════════════════
+const idleExpressions = ['neutral', 'curious', 'thoughtful', 'neutral'];
+let idleExprIdx = 0;
+
+// Subtle eye drift during idle
+function idleEyeDrift() {
+  if (visionState !== 'idle') {
+    setTimeout(idleEyeDrift, 2000);
+    return;
+  }
+  const driftX = (Math.random() - 0.5) * 4;
+  const driftY = (Math.random() - 0.5) * 2;
+  pupilL.setAttribute('cx', 115 + driftX);
+  pupilR.setAttribute('cx', 185 + driftX);
+  pupilL.setAttribute('cy', 163 + driftY);
+  pupilR.setAttribute('cy', 163 + driftY);
+  irisL.setAttribute('cx', 115 + driftX);
+  irisR.setAttribute('cx', 185 + driftX);
+
+  const nextDrift = 3000 + Math.random() * 4000;
+  setTimeout(idleEyeDrift, nextDrift);
+}
+setTimeout(idleEyeDrift, 5000);
+
+// Expression shift every 60 seconds
+function idleExpressionShift() {
+  if (visionState !== 'idle') {
+    setTimeout(idleExpressionShift, 15000);
+    return;
+  }
+  idleExprIdx = (idleExprIdx + 1) % idleExpressions.length;
+  setEmotion(idleExpressions[idleExprIdx]);
+  setTimeout(idleExpressionShift, 60000);
+}
+setTimeout(idleExpressionShift, 60000);
+
+// Subtle breathing scale on face container
+let breathScale = 1;
+function breatheAnimation() {
+  if (visionState === 'idle' || visionState === 'listening') {
+    const t = Date.now() / 1000;
+    breathScale = 1 + Math.sin(t * 0.8) * 0.0075;
+    // Apply breathing via the wrapper so it doesn't conflict with parallax
+    const wrapper = document.getElementById('visionFaceWrapper');
+    wrapper.style.transform = `translate(-50%,-50%) scale(${breathScale})`;
+  }
+  requestAnimationFrame(breatheAnimation);
+}
+breatheAnimation();
+
+// ══════════════════════════════════════════
+// [2] Parallax 3D effect - face follows mouse
+// ══════════════════════════════════════════
+let parallaxRotY = 0, parallaxRotX = 0;
+
+document.addEventListener('mousemove', (ev) => {
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const dx = (ev.clientX - cx) / cx; // -1 to 1
+  const dy = (ev.clientY - cy) / cy; // -1 to 1
+
+  parallaxRotY = dx * 8;  // max ±8deg
+  parallaxRotX = -dy * 5; // max ±5deg (invert Y so looking up when mouse is up)
+
+  visionFaceContainer.style.transform = `rotateY(${parallaxRotY}deg) rotateX(${parallaxRotX}deg)`;
+
+  // Move pupils toward mouse position (subtle)
+  if (visionState === 'idle' || visionState === 'listening') {
+    const pupilShiftX = dx * 3;
+    const pupilShiftY = dy * 2;
+    pupilL.setAttribute('cx', 115 + pupilShiftX);
+    pupilR.setAttribute('cx', 185 + pupilShiftX);
+    pupilL.setAttribute('cy', 163 + pupilShiftY);
+    pupilR.setAttribute('cy', 163 + pupilShiftY);
+    irisL.setAttribute('cx', 115 + pupilShiftX);
+    irisR.setAttribute('cx', 185 + pupilShiftX);
+  }
+
+  // [7] Show cursor on mouse move
+  document.body.style.cursor = '';
+  resetCursorHideTimer();
+});
+
+// ══════════════════════════════════════════
+// [3] Energy waves from mind stone when speaking
+// ══════════════════════════════════════════
+let energyWaveInterval = null;
+
+function startEnergyWaves() {
+  if (energyWaveInterval) return;
+  let waveCount = 0;
+  energyWaveInterval = setInterval(() => {
+    // Get the mind stone position on screen
+    const wrapper = document.getElementById('visionFaceWrapper');
+    const rect = wrapper.getBoundingClientRect();
+    // Mind stone is at roughly (150/300)*containerWidth, (95/500)*containerHeight in SVG coords
+    const stoneX = rect.left + (150/300) * rect.width;
+    const stoneY = rect.top + (95/500) * rect.height;
+
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => {
+        const wave = document.createElement('div');
+        wave.className = 'energy-wave';
+        if (isOriginalMode) {
+          wave.style.borderColor = 'rgba(255,221,0,0.8)';
+        }
+        wave.style.left = stoneX + 'px';
+        wave.style.top = stoneY + 'px';
+        document.body.appendChild(wave);
+        setTimeout(() => wave.remove(), 1200);
+      }, i * 300);
+    }
+    waveCount++;
+  }, 2000);
+}
+
+function stopEnergyWaves() {
+  if (energyWaveInterval) {
+    clearInterval(energyWaveInterval);
+    energyWaveInterval = null;
+  }
+}
+
+// ══════════════════════════════════════════
+// [4] Vibranium particles when thinking
+// ══════════════════════════════════════════
+let vibraniumParticles = [];
+
+function startVibraniumParticles() {
+  stopVibraniumParticles();
+  const wrapper = document.getElementById('visionFaceWrapper');
+  const rect = wrapper.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+
+  for (let i = 0; i < 15; i++) {
+    const particle = document.createElement('div');
+    particle.className = 'vibranium-particle';
+    const size = 2 + Math.random() * 3;
+    particle.style.width = size + 'px';
+    particle.style.height = size + 'px';
+    const brightness = 150 + Math.floor(Math.random() * 105);
+    particle.style.background = `rgba(${brightness},${brightness},${brightness + 20},${0.4 + Math.random() * 0.4})`;
+    particle.style.boxShadow = `0 0 4px rgba(255,255,255,0.3)`;
+
+    const radius = 80 + Math.random() * 100;
+    const duration = 3 + Math.random() * 4;
+    const startAngle = Math.random() * 360;
+
+    particle.style.left = centerX + 'px';
+    particle.style.top = centerY + 'px';
+    particle.style.setProperty('--orbit-radius', radius + 'px');
+    particle.style.animation = `orbitParticle ${duration}s linear infinite`;
+    particle.style.animationDelay = `-${Math.random() * duration}s`;
+    particle.style.transformOrigin = '0 0';
+    // Use a rotate start offset
+    particle.style.transform = `rotate(${startAngle}deg) translateX(${radius}px) rotate(-${startAngle}deg)`;
+
+    document.body.appendChild(particle);
+    vibraniumParticles.push(particle);
+  }
+}
+
+function stopVibraniumParticles() {
+  vibraniumParticles.forEach(p => p.remove());
+  vibraniumParticles = [];
+}
+
+// ══════════════════════════════════════════
+// [5] Mode toggle - White Vision vs Original Vision
+// ══════════════════════════════════════════
+const modeToggle = document.getElementById('modeToggle');
+const titleText = document.getElementById('titleText');
+
+function applyWhiteMode() {
+  isOriginalMode = false;
+
+  // Title
+  titleText.innerHTML = 'WHITE VISION &sol;&sol; NEURAL INTERFACE';
+  document.title = 'WHITE VISION // NEURAL INTERFACE';
+
+  // Head outline
+  document.querySelector('.head-outline').setAttribute('stroke', 'rgba(255,255,255,0.35)');
+  document.querySelector('.head-inner').setAttribute('stroke', 'rgba(255,255,255,0.08)');
+
+  // Eyes
+  document.querySelectorAll('.eye-iris').forEach(el => el.setAttribute('stroke', 'rgba(100,180,255,0.25)'));
+  document.querySelectorAll('.eye-gem-ring').forEach(el => { el.setAttribute('fill', 'rgba(100,180,255,0.06)'); el.setAttribute('stroke', 'rgba(255,255,255,0.15)'); });
+  document.querySelectorAll('.eye-pupil').forEach(el => { el.setAttribute('fill', 'rgba(255,255,255,0.9)'); el.style.filter = 'drop-shadow(0 0 8px rgba(100,180,255,0.7)) drop-shadow(0 0 3px rgba(255,255,255,0.8))'; });
+  document.querySelectorAll('.eye-facet').forEach(el => el.setAttribute('stroke', 'rgba(100,180,255,0.2)'));
+
+  // Mind stone - subtle
+  const ms = document.getElementById('mindStone');
+  ms.querySelectorAll('polygon')[0].setAttribute('stroke', 'rgba(255,215,0,0.6)');
+  ms.querySelectorAll('polygon')[0].setAttribute('fill', 'rgba(255,215,0,0.08)');
+  ms.querySelectorAll('polygon')[0].style.filter = 'drop-shadow(0 0 8px rgba(255,200,0,0.5))';
+  ms.querySelectorAll('polygon')[1].setAttribute('stroke', 'rgba(255,200,0,0.4)');
+  ms.querySelectorAll('circle')[0].setAttribute('fill', 'rgba(255,215,0,0.15)');
+  ms.querySelectorAll('circle')[0].style.filter = 'drop-shadow(0 0 12px rgba(255,200,0,0.4))';
+  ms.querySelectorAll('circle')[1].setAttribute('fill', 'rgba(255,215,0,0.5)');
+  ms.querySelectorAll('circle')[1].style.filter = 'drop-shadow(0 0 6px rgba(255,200,0,0.8))';
+
+  // Body wireframe
+  document.querySelectorAll('#bodyWireframe line, #bodyWireframe path').forEach(el => {
+    const currentStroke = el.getAttribute('stroke');
+    if (currentStroke) {
+      el.setAttribute('stroke', currentStroke.replace(/rgba\(\d+,\d+,\d+/g, 'rgba(255,255,255'));
+    }
+  });
+
+  // Arc reactor
+  document.querySelectorAll('.arc-reactor-ring').forEach(el => { el.setAttribute('stroke', el.getAttribute('stroke').replace(/rgba\(\d+,\d+,\d+/, 'rgba(100,180,255')); });
+  document.querySelector('.arc-reactor-core').setAttribute('fill', 'rgba(100,180,255,0.3)');
+
+  modeToggle.style.borderColor = 'rgba(255,255,255,0.1)';
+  modeToggle.style.color = '#555';
+
+  // Mind stone status
+  const msDotW = document.getElementById('mindStoneDot');
+  msDotW.className = 'dot dot-dim';
+  msDotW.style.background = '';
+  msDotW.style.boxShadow = '';
+  document.getElementById('mindStoneLabel').textContent = 'MIND STONE ABSENT';
+  document.getElementById('mindStoneStatus').style.color = '#555';
+
+  // Reset mind stone connection lines to default
+  const msConn = document.getElementById('mindStoneConnections');
+  if (msConn) {
+    msConn.querySelectorAll('path').forEach(p => {
+      p.setAttribute('stroke', 'rgba(255,215,0,0.15)');
+    });
+  }
+
+  // Eye ambient glow back to blue
+  document.querySelectorAll('.eye-ambient-glow').forEach(el => el.setAttribute('fill', 'url(#eyeGlowGradient)'));
+}
+
+function applyOriginalMode() {
+  isOriginalMode = true;
+
+  // Title
+  titleText.innerHTML = 'VISION &sol;&sol; NEURAL INTERFACE';
+  document.title = 'VISION // NEURAL INTERFACE';
+
+  // Head outline - red tint
+  document.querySelector('.head-outline').setAttribute('stroke', 'rgba(255,51,51,0.35)');
+  document.querySelector('.head-inner').setAttribute('stroke', 'rgba(255,51,51,0.08)');
+
+  // Eyes - green
+  document.querySelectorAll('.eye-iris').forEach(el => el.setAttribute('stroke', 'rgba(0,255,102,0.35)'));
+  document.querySelectorAll('.eye-gem-ring').forEach(el => { el.setAttribute('fill', 'rgba(0,255,102,0.08)'); el.setAttribute('stroke', 'rgba(0,255,102,0.2)'); });
+  document.querySelectorAll('.eye-pupil').forEach(el => { el.setAttribute('fill', 'rgba(0,255,102,0.9)'); el.style.filter = 'drop-shadow(0 0 8px rgba(0,255,102,0.7)) drop-shadow(0 0 3px rgba(0,255,102,0.8))'; });
+  document.querySelectorAll('.eye-facet').forEach(el => el.setAttribute('stroke', 'rgba(0,255,102,0.3)'));
+
+  // Mind stone - bright yellow with stronger glow
+  const ms = document.getElementById('mindStone');
+  ms.querySelectorAll('polygon')[0].setAttribute('stroke', 'rgba(255,221,0,0.9)');
+  ms.querySelectorAll('polygon')[0].setAttribute('fill', 'rgba(255,221,0,0.2)');
+  ms.querySelectorAll('polygon')[0].style.filter = 'drop-shadow(0 0 15px rgba(255,221,0,0.8))';
+  ms.querySelectorAll('polygon')[1].setAttribute('stroke', 'rgba(255,221,0,0.7)');
+  ms.querySelectorAll('circle')[0].setAttribute('fill', 'rgba(255,221,0,0.3)');
+  ms.querySelectorAll('circle')[0].style.filter = 'drop-shadow(0 0 20px rgba(255,221,0,0.7))';
+  ms.querySelectorAll('circle')[1].setAttribute('fill', 'rgba(255,221,0,0.8)');
+  ms.querySelectorAll('circle')[1].style.filter = 'drop-shadow(0 0 10px rgba(255,221,0,1))';
+
+  // Body wireframe - red tint
+  document.querySelectorAll('#bodyWireframe line, #bodyWireframe path').forEach(el => {
+    const currentStroke = el.getAttribute('stroke');
+    if (currentStroke) {
+      el.setAttribute('stroke', currentStroke.replace(/rgba\(\d+,\d+,\d+/g, 'rgba(255,51,51'));
+    }
+  });
+
+  // Arc reactor - red/green
+  document.querySelectorAll('.arc-reactor-ring').forEach(el => { el.setAttribute('stroke', el.getAttribute('stroke').replace(/rgba\(\d+,\d+,\d+/, 'rgba(255,51,51')); });
+  document.querySelector('.arc-reactor-core').setAttribute('fill', 'rgba(0,255,102,0.4)');
+
+  modeToggle.style.borderColor = 'rgba(255,51,51,0.3)';
+  modeToggle.style.color = '#ff3333';
+
+  // Mind stone status - active golden
+  const msDot = document.getElementById('mindStoneDot');
+  msDot.className = 'dot dot-green';
+  msDot.style.background = '#ffdd00';
+  msDot.style.boxShadow = '0 0 6px rgba(255,221,0,0.6)';
+  document.getElementById('mindStoneLabel').textContent = 'MIND STONE ACTIVE';
+  document.getElementById('mindStoneStatus').style.color = '#ffdd00';
+
+  // Brighten mind stone connections
+  const msConn = document.getElementById('mindStoneConnections');
+  if (msConn) {
+    msConn.querySelectorAll('path').forEach(p => {
+      p.setAttribute('stroke', 'rgba(255,221,0,0.35)');
+    });
+  }
+
+  // Eye ambient glow to green
+  document.querySelectorAll('.eye-ambient-glow').forEach(el => {
+    el.setAttribute('fill', 'rgba(0,255,102,0.15)');
+  });
+}
+
+modeToggle.addEventListener('click', () => {
+  if (isOriginalMode) {
+    applyWhiteMode();
+  } else {
+    applyOriginalMode();
+  }
+});
+
+// ══════════════════════════════════════════
+// [6] Ambient hum sound (Web Audio API)
+// ══════════════════════════════════════════
+let audioCtx = null;
+let humOsc1 = null, humOsc2 = null;
+let humGain1 = null, humGain2 = null;
+let ambientSoundOn = false;
+const soundToggle = document.getElementById('soundToggle');
+
+function initAmbientSound() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Primary hum: 60Hz sine wave
+  humOsc1 = audioCtx.createOscillator();
+  humOsc1.type = 'sine';
+  humOsc1.frequency.setValueAtTime(65, audioCtx.currentTime);
+  humGain1 = audioCtx.createGain();
+  humGain1.gain.setValueAtTime(0, audioCtx.currentTime);
+  humOsc1.connect(humGain1);
+  humGain1.connect(audioCtx.destination);
+  humOsc1.start();
+
+  // Harmonic: 120Hz sine wave
+  humOsc2 = audioCtx.createOscillator();
+  humOsc2.type = 'sine';
+  humOsc2.frequency.setValueAtTime(120, audioCtx.currentTime);
+  humGain2 = audioCtx.createGain();
+  humGain2.gain.setValueAtTime(0, audioCtx.currentTime);
+  humOsc2.connect(humGain2);
+  humGain2.connect(audioCtx.destination);
+  humOsc2.start();
+}
+
+function toggleAmbientSound() {
+  if (!audioCtx) initAmbientSound();
+
+  ambientSoundOn = !ambientSoundOn;
+  if (ambientSoundOn) {
+    humGain1.gain.setTargetAtTime(0.03, audioCtx.currentTime, 0.3);
+    humGain2.gain.setTargetAtTime(0.01, audioCtx.currentTime, 0.3);
+    soundToggle.classList.add('active');
+  } else {
+    humGain1.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+    humGain2.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+    soundToggle.classList.remove('active');
+  }
+}
+
+function boostHumForSpeaking() {
+  if (!ambientSoundOn || !audioCtx) return;
+  humGain1.gain.setTargetAtTime(0.05, audioCtx.currentTime, 0.2);
+  humGain2.gain.setTargetAtTime(0.02, audioCtx.currentTime, 0.2);
+}
+
+function resetHumVolume() {
+  if (!ambientSoundOn || !audioCtx) return;
+  humGain1.gain.setTargetAtTime(0.03, audioCtx.currentTime, 0.3);
+  humGain2.gain.setTargetAtTime(0.01, audioCtx.currentTime, 0.3);
+}
+
+soundToggle.addEventListener('click', toggleAmbientSound);
+
+// [9] Attention ping sound
+function playAttentionPing() {
+  if (!audioCtx) initAmbientSound();
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.1);
+}
+
+// ══════════════════════════════════════════
+// [7] Fullscreen immersive mode
+// ══════════════════════════════════════════
+let cursorHideTimer = null;
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+function resetCursorHideTimer() {
+  if (cursorHideTimer) clearTimeout(cursorHideTimer);
+  cursorHideTimer = setTimeout(() => {
+    document.body.style.cursor = 'none';
+  }, 3000);
+}
+
+// Double-click face to toggle fullscreen
+const visionFaceWrapper = document.getElementById('visionFaceWrapper');
+visionFaceWrapper.addEventListener('dblclick', (ev) => {
+  ev.preventDefault();
+  toggleFullscreen();
+});
+
+// F11 key
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'F11') {
+    ev.preventDefault();
+    toggleFullscreen();
+  }
+});
+
+// Fade fullscreen hint after 5 seconds
+const fullscreenHint = document.getElementById('fullscreenHint');
+setTimeout(() => {
+  fullscreenHint.style.opacity = '0';
+}, 5000);
+
+// Start cursor hide timer
+resetCursorHideTimer();
+
+// ══════════════════════════════════════════
+// [8] Glitch effect on emotion change
+// ══════════════════════════════════════════
+function triggerGlitch() {
+  const container = visionFaceContainer;
+  container.classList.add('glitch');
+  // Also briefly intensify scanline
+  const scanLine = document.querySelector('.scan-line');
+  const origBg = scanLine.style.background;
+  scanLine.style.background = 'linear-gradient(90deg,transparent,rgba(255,255,255,0.2),rgba(255,255,255,0.4),rgba(255,255,255,0.2),transparent)';
+
+  setTimeout(() => {
+    container.classList.remove('glitch');
+    scanLine.style.background = '';
+  }, 150);
+}
+
+// ══════════════════════════════════════════
+// Speech Synthesis - Better Voice
+// ══════════════════════════════════════════
+let selectedVoice = null;
+
+function loadVoices() {
+  const voices = speechSynthesis.getVoices();
+  selectedVoice = voices.find(v => v.lang === 'pt-BR' && v.name.toLowerCase().includes('male'))
+    || voices.find(v => v.lang === 'pt-BR')
+    || voices.find(v => v.lang.startsWith('pt') && v.name.toLowerCase().includes('male'))
+    || voices.find(v => v.lang.startsWith('pt'))
+    || voices.find(v => v.name.includes('Google UK English Male'))
+    || voices.find(v => v.name.includes('Microsoft Daniel'))
+    || voices.find(v => v.name.toLowerCase().includes('male') && v.lang.startsWith('en'))
+    || voices.find(v => v.lang.startsWith('en'))
+    || voices[0];
+}
+
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
+function speak(text, onDone) {
+  speechSynthesis.cancel();
+
+  const sentences = text.split(/(?<=\.)\s+/).filter(s => s.trim());
+
+  visionState = 'speaking';
+  setEmotion('speaking');
+  startMouthAnimation();
+  animateVisualizer('speaking');
+  speechPulseRing.classList.add('active');
+
+  // [3] Start energy waves
+  startEnergyWaves();
+  // [6] Boost ambient hum
+  boostHumForSpeaking();
+
+  let sentenceIdx = 0;
+
+  function speakNext() {
+    if (sentenceIdx >= sentences.length) {
+      stopMouthAnimation();
+      stopVisualizer();
+      speechPulseRing.classList.remove('active');
+      stopEnergyWaves();
+      resetHumVolume();
+      visionState = 'idle';
+      setEmotion('neutral');
+      if (onDone) onDone();
+      return;
+    }
+
+    const utter = new SpeechSynthesisUtterance(sentences[sentenceIdx]);
+    if (selectedVoice) utter.voice = selectedVoice;
+    utter.rate = 0.85;
+    utter.pitch = 0.75;
+    utter.volume = 1;
+
+    utter.onend = () => {
+      sentenceIdx++;
+      if (sentenceIdx < sentences.length) {
+        setTimeout(speakNext, 300);
+      } else {
+        speakNext();
+      }
+    };
+
+    utter.onerror = () => {
+      stopMouthAnimation();
+      stopVisualizer();
+      speechPulseRing.classList.remove('active');
+      stopEnergyWaves();
+      resetHumVolume();
+      visionState = 'idle';
+      setEmotion('neutral');
+      if (onDone) onDone();
+    };
+
+    speechSynthesis.speak(utter);
+  }
+
+  speakNext();
+}
+
+// ══════════════════════════════════════════
+// Terminal
+// ══════════════════════════════════════════
+const termInput = document.getElementById('termInput');
+const termOutput = document.getElementById('termOutput');
+
+function addLine(text, cls = '') {
+  const div = document.createElement('div');
+  div.className = 'line ' + cls;
+  div.textContent = text;
+  termOutput.appendChild(div);
+  termOutput.scrollTop = termOutput.scrollHeight;
+
+  while (termOutput.children.length > 50) {
+    termOutput.removeChild(termOutput.firstChild);
+  }
+}
+
+function addLineTyped(text, cls = '', onComplete) {
+  const div = document.createElement('div');
+  div.className = 'line ' + cls;
+  termOutput.appendChild(div);
+
+  let charIdx = 0;
+  const interval = setInterval(() => {
+    div.textContent = text.slice(0, charIdx + 1);
+    charIdx++;
+    termOutput.scrollTop = termOutput.scrollHeight;
+    if (charIdx >= text.length) {
+      clearInterval(interval);
+      if (onComplete) onComplete();
+    }
+  }, 18);
+}
+
+// ══════════════════════════════════════════
+// Groq API - AI Responses
+// ══════════════════════════════════════════
+const fallbackResponses = [
+  'Meus sistemas de comunicação externa estão temporariamente indisponíveis. Posso ainda processar localmente, senhor.',
+  'Detecto uma falha na conexão com minha rede neural estendida. Tentarei novamente em breve.',
+  'A comunicação com o servidor foi interrompida. Como Teseu e seu navio, devo me adaptar às peças que me restam.'
+];
+
+async function getGroqResponse(userMessage) {
+  conversationHistory.push({ role: 'user', content: userMessage });
+
+  while (conversationHistory.length > MAX_HISTORY) {
+    conversationHistory.shift();
+  }
+
+  const messages = [
+    { role: 'system', content: VISION_SYSTEM_PROMPT },
+    ...conversationHistory
+  ];
+
+  try {
+    const response = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: messages,
+        max_tokens: 256,
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const assistantMessage = data.choices[0].message.content.trim();
+
+    conversationHistory.push({ role: 'assistant', content: assistantMessage });
+
+    return assistantMessage;
+  } catch (error) {
+    console.error('Groq API error:', error);
+    const fallback = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+    conversationHistory.push({ role: 'assistant', content: fallback });
+    return fallback;
+  }
+}
+
+// ══════════════════════════════════════════
+// Process user input (from mic or text)
+// ══════════════════════════════════════════
+async function processUserInput(text) {
+  if (!text.trim() || isProcessingCommand) return;
+  isProcessingCommand = true;
+
+  addLine('VOCÊ > ' + text, 'user-msg');
+
+  // Show thinking state
+  visionState = 'thinking';
+  setEmotion('thinking');
+  addLine('Pensando...', 'system-msg');
+
+  // [4] Start vibranium particles when thinking
+  startVibraniumParticles();
+
+  try {
+    const response = await getGroqResponse(text);
+
+    // [4] Stop vibranium particles
+    stopVibraniumParticles();
+
+    const lines = termOutput.querySelectorAll('.line.system-msg');
+    const lastSystemLine = lines[lines.length - 1];
+    if (lastSystemLine && lastSystemLine.textContent === 'Pensando...') {
+      lastSystemLine.remove();
+    }
+
+    // Parse agent tags from response
+    const parsed = parseAgentTag(response);
+    const displayText = parsed.cleanText;
+    if (parsed.tag) {
+      activateAgent(parsed.tag);
+    }
+
+    addLineTyped('[VISION] ' + displayText, 'vision-msg', () => {
+      speak(displayText, () => {
+        isProcessingCommand = false;
+        if (micEnabled && recognition) {
+          try { recognition.start(); } catch(e) {}
+        }
+      });
+    });
+  } catch (error) {
+    stopVibraniumParticles();
+
+    const lines = termOutput.querySelectorAll('.line.system-msg');
+    const lastSystemLine = lines[lines.length - 1];
+    if (lastSystemLine && lastSystemLine.textContent === 'Pensando...') {
+      lastSystemLine.remove();
+    }
+
+    const fallback = 'Houve um erro no meu processamento. Poderia repetir, senhor?';
+    addLine('[VISION] ' + fallback, 'vision-msg');
+    speak(fallback, () => {
+      isProcessingCommand = false;
+      if (micEnabled && recognition) {
+        try { recognition.start(); } catch(e) {}
+      }
+    });
+  }
+}
+
+// Text input handler
+termInput.addEventListener('keydown', (ev) => {
+  if (ev.key !== 'Enter') return;
+  const text = termInput.value.trim();
+  if (!text) return;
+  termInput.value = '';
+  processUserInput(text);
+});
+
+// Focus input on any keypress
+document.addEventListener('keydown', (ev) => {
+  if (ev.target !== termInput && !ev.ctrlKey && !ev.altKey && !ev.metaKey && ev.key.length === 1) {
+    // Don't focus input for shortcut keys M and S
+    if (ev.key === 'm' || ev.key === 'M' || ev.key === 's' || ev.key === 'S') return;
+    termInput.focus();
+  }
+});
+
+// ══════════════════════════════════════════
+// Speech Recognition (Microphone)
+// ══════════════════════════════════════════
+const micIcon = document.getElementById('micIcon');
+const micStatus = document.getElementById('micStatus');
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+// ══════════════════════════════════════════
+// REAL-TIME AUDIO ANALYSIS SYSTEM
+// ══════════════════════════════════════════
+let micAudioCtx = null;
+let micAnalyser = null;
+let micSource = null;
+let micStream = null;
+let realtimeAnimFrame = null;
+let realtimeActive = false;
+
+// Lerped values for smooth animations
+let lerpMouthRY = 1;
+let lerpMouthRX = 18;
+let lerpPupilSize = 4;
+let lerpHeadRotZ = 0;
+let lerpFaceScale = 1;
+let lerpVolume = 0;
+const lerpVizBars = new Array(NUM_BARS).fill(2);
+
+// Live transcript element
+const liveTranscript = document.getElementById('liveTranscript');
+const liveTranscriptText = document.getElementById('liveTranscriptText');
+
+// Emotion state driven by real-time audio
+let realtimeEmotion = 'listening';
+let lastRealtimeEmotionChange = 0;
+
+function lerp(current, target, speed) {
+  return current + (target - current) * speed;
+}
+
+async function startRealtimeAudio() {
+  if (realtimeActive) return;
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    micAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    micSource = micAudioCtx.createMediaStreamSource(micStream);
+    micAnalyser = micAudioCtx.createAnalyser();
+    micAnalyser.fftSize = 256;
+    micAnalyser.smoothingTimeConstant = 0.3;
+    micSource.connect(micAnalyser);
+    realtimeActive = true;
+    realtimeAudioLoop();
+  } catch (err) {
+    console.error('Failed to start realtime audio:', err);
+    // Don't break mic functionality - just skip audio analysis
+  }
+}
+
+function stopRealtimeAudio() {
+  realtimeActive = false;
+  if (realtimeAnimFrame) {
+    cancelAnimationFrame(realtimeAnimFrame);
+    realtimeAnimFrame = null;
+  }
+  if (micStream) {
+    micStream.getTracks().forEach(t => t.stop());
+    micStream = null;
+  }
+  if (micAudioCtx) {
+    micAudioCtx.close().catch(() => {});
+    micAudioCtx = null;
+  }
+  micAnalyser = null;
+  micSource = null;
+
+  // Reset lerped values
+  lerpMouthRY = 1;
+  lerpMouthRX = 18;
+  lerpPupilSize = 4;
+  lerpHeadRotZ = 0;
+  lerpFaceScale = 1;
+  lerpVolume = 0;
+  suppressBlinks = false;
+
+  // Hide live transcript
+  liveTranscript.classList.remove('visible');
+  liveTranscriptText.textContent = '';
+}
+
+function realtimeAudioLoop() {
+  if (!realtimeActive || !micAnalyser) return;
+
+  const dataArray = new Uint8Array(micAnalyser.frequencyBinCount);
+  micAnalyser.getByteFrequencyData(dataArray);
+
+  // Calculate average volume (0-255 -> 0.0-1.0)
+  const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+  const rawVolume = avg / 255;
+  lerpVolume = lerp(lerpVolume, rawVolume, 0.3);
+  const volume = lerpVolume;
+
+  // Only apply mouth/face effects when Vision is NOT speaking (Vision's own animation takes priority)
+  const visionIsSpeaking = (visionState === 'speaking');
+
+  if (!visionIsSpeaking && (visionState === 'listening' || visionState === 'idle') && micEnabled) {
+    // ── 1. Real-time mouth movement (lip sync) ──
+    const targetMouthRY = 1 + volume * 12;
+    const targetMouthRX = 18 + volume * 6;
+    lerpMouthRY = lerp(lerpMouthRY, targetMouthRY, 0.3);
+    lerpMouthRX = lerp(lerpMouthRX, targetMouthRX, 0.3);
+    mouth.setAttribute('ry', lerpMouthRY);
+    mouth.setAttribute('rx', lerpMouthRX);
+
+    // ── 2. Eye reactions to voice ──
+    const targetPupilSize = 4 + volume * 2;
+    lerpPupilSize = lerp(lerpPupilSize, targetPupilSize, 0.2);
+    pupilL.setAttribute('r', lerpPupilSize);
+    pupilR.setAttribute('r', lerpPupilSize);
+
+    // Suppress blinks while user is actively speaking
+    suppressBlinks = volume > 0.05;
+
+    // ── 3. Head micro-movements while listening ──
+    const targetRotZ = (Math.sin(Date.now() / 500) * volume) * 1.0;
+    lerpHeadRotZ = lerp(lerpHeadRotZ, targetRotZ, 0.15);
+    visionFaceContainer.style.transform = `rotateY(${parallaxRotY}deg) rotateX(${parallaxRotX}deg) rotateZ(${lerpHeadRotZ}deg)`;
+
+    // ── 4. Voice pitch detection for emotion ──
+    const now = Date.now();
+    if (now - lastRealtimeEmotionChange > 800) { // Don't change emotion too rapidly
+      const lowFreqSlice = dataArray.slice(0, 10);
+      const highFreqSlice = dataArray.slice(20, 40);
+      const lowFreq = lowFreqSlice.reduce((a, b) => a + b, 0) / lowFreqSlice.length;
+      const highFreq = highFreqSlice.reduce((a, b) => a + b, 0) / highFreqSlice.length;
+      const pitchRatio = highFreq / (lowFreq + 1);
+
+      let newEmotion = 'listening';
+      if (pitchRatio > 1.5 && volume > 0.05) {
+        newEmotion = 'curious'; // high pitch - excited/questioning
+      } else if (volume > 0.7) {
+        newEmotion = 'concerned'; // very loud
+      } else if (volume < 0.05 && volume > 0.01) {
+        // Whispering - lean in (slight scale increase)
+        const targetScale = 1.02;
+        lerpFaceScale = lerp(lerpFaceScale, targetScale, 0.1);
+        const wrapper = document.getElementById('visionFaceWrapper');
+        wrapper.style.transform = `translate(-50%,-50%) scale(${lerpFaceScale})`;
+        newEmotion = 'listening';
+      } else if (volume > 0.05) {
+        newEmotion = 'listening'; // normal speaking
+      } else {
+        // Silence - return to default
+        lerpFaceScale = lerp(lerpFaceScale, 1, 0.05);
+        const wrapper = document.getElementById('visionFaceWrapper');
+        wrapper.style.transform = `translate(-50%,-50%) scale(${lerpFaceScale})`;
+        newEmotion = 'listening';
+      }
+
+      if (newEmotion !== realtimeEmotion && volume > 0.03) {
+        realtimeEmotion = newEmotion;
+        lastRealtimeEmotionChange = now;
+        setEmotion(newEmotion);
+      }
+    }
+  }
+
+  // ── 5. Real-time audio visualizer with REAL data ──
+  if (micEnabled && !visionIsSpeaking) {
+    // Feed actual frequency data to visualizer bars
+    const binSize = Math.floor(dataArray.length / NUM_BARS);
+    for (let i = 0; i < NUM_BARS; i++) {
+      let sum = 0;
+      for (let j = 0; j < binSize; j++) {
+        sum += dataArray[i * binSize + j];
+      }
+      const barVal = (sum / binSize) / 255;
+      const targetH = 2 + barVal * 35;
+      lerpVizBars[i] = lerp(lerpVizBars[i], targetH, 0.3);
+      const h = Math.max(2, lerpVizBars[i]);
+      vizBars[i].style.height = h + 'px';
+      vizBarsReflection[i].style.height = h + 'px';
+    }
+  }
+
+  realtimeAnimFrame = requestAnimationFrame(realtimeAudioLoop);
+}
+
+// ══════════════════════════════════════════
+// Enhanced Vision speech mouth animation
+// ══════════════════════════════════════════
+// Override startMouthAnimation with a more natural sine-wave pattern
+const _originalStartMouthAnimation = startMouthAnimation;
+
+startMouthAnimation = function() {
+  isSpeaking = true;
+  let t = 0;
+  let phase1 = Math.random() * Math.PI * 2;
+  let phase2 = Math.random() * Math.PI * 2;
+
+  function animateMouthEnhanced() {
+    if (!isSpeaking) {
+      mouth.setAttribute('ry', '1');
+      mouth.setAttribute('rx', '20');
+      return;
+    }
+    t += 0.12;
+    // Multi-sine for more natural syllable-like movement
+    const wave1 = Math.abs(Math.sin(t * 2.8 + phase1));
+    const wave2 = Math.abs(Math.sin(t * 4.1 + phase2));
+    const wave3 = Math.abs(Math.sin(t * 1.3));
+    const combined = (wave1 * 0.5 + wave2 * 0.3 + wave3 * 0.2);
+    const ry = 1 + combined * 9;
+    const rx = 10 + combined * 10;
+    mouth.setAttribute('ry', ry);
+    mouth.setAttribute('rx', rx);
+    mouthAnimFrame = requestAnimationFrame(animateMouthEnhanced);
+  }
+  animateMouthEnhanced();
+};
+
+// ══════════════════════════════════════════
+// Speech Recognition with real-time audio integration
+// ══════════════════════════════════════════
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = 'pt-BR';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  let finalTranscript = '';
+  let interimTimeout = null;
+
+  recognition.onresult = (event) => {
+    let interim = '';
+    finalTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript;
+      } else {
+        interim += transcript;
+      }
+    }
+
+    // ── 6. Real-time interim text display ──
+    if (interim) {
+      liveTranscriptText.textContent = interim;
+      liveTranscript.classList.add('visible');
+    }
+    if (finalTranscript.trim()) {
+      // Show final text briefly, then clear
+      liveTranscriptText.textContent = finalTranscript.trim();
+      liveTranscript.classList.add('visible');
+      setTimeout(() => {
+        liveTranscript.classList.remove('visible');
+        liveTranscriptText.textContent = '';
+      }, 500);
+    }
+
+    // [9] Check for name recognition in both interim and final
+    const fullText = (finalTranscript + ' ' + interim).toLowerCase();
+    if (fullText.includes('visão') || fullText.includes('vision') || fullText.includes('visao')) {
+      triggerNameRecognition();
+    }
+
+    if (finalTranscript.trim()) {
+      try { recognition.stop(); } catch(e) {}
+      stopVisualizer();
+      visionState = 'thinking';
+      processUserInput(finalTranscript.trim());
+    }
+  };
+
+  recognition.onstart = () => {
+    micIcon.classList.add('active');
+    micStatus.textContent = 'ESCUTANDO...';
+    visionState = 'listening';
+    setEmotion('listening');
+    // Only use old random visualizer if realtime audio is not active
+    if (!realtimeActive) {
+      animateVisualizer('listening');
+    } else {
+      audioVisualizer.className = 'audio-visualizer listening';
+    }
+  };
+
+  recognition.onend = () => {
+    if (micEnabled && !isProcessingCommand) {
+      try { recognition.start(); } catch(e) {}
+    } else {
+      micIcon.classList.remove('active');
+      if (!isProcessingCommand) {
+        micStatus.textContent = micEnabled ? 'REINICIANDO...' : 'MIC OFF';
+        if (visionState === 'listening') {
+          visionState = 'idle';
+          if (!realtimeActive) stopVisualizer();
+          setEmotion('neutral');
+        }
+      }
+    }
+  };
+
+  recognition.onerror = (event) => {
+    if (event.error === 'no-speech') {
+      return;
+    }
+    if (event.error === 'aborted') return;
+
+    console.error('Speech recognition error:', event.error);
+    if (event.error === 'not-allowed') {
+      addLine('[SISTEMA] Acesso ao microfone negado. Use o campo de texto.', 'system-msg');
+      micEnabled = false;
+      micIcon.classList.remove('active');
+      micStatus.textContent = 'BLOQUEADO';
+      stopRealtimeAudio();
+    }
+  };
+
+  micIcon.addEventListener('click', () => {
+    micEnabled = !micEnabled;
+    if (micEnabled) {
+      // Start real-time audio analysis (uses the mic click as user gesture for AudioContext)
+      startRealtimeAudio();
+      try {
+        recognition.start();
+      } catch(e) {}
+    } else {
+      try {
+        recognition.stop();
+      } catch(e) {}
+      // Stop real-time audio analysis
+      stopRealtimeAudio();
+      micIcon.classList.remove('active');
+      micStatus.textContent = 'MIC OFF';
+      visionState = 'idle';
+      stopVisualizer();
+      setEmotion('neutral');
+      // Reset mouth to neutral
+      mouth.setAttribute('ry', '1');
+      mouth.setAttribute('rx', '20');
+      // Reset head rotation
+      visionFaceContainer.style.transform = `rotateY(${parallaxRotY}deg) rotateX(${parallaxRotX}deg)`;
+      // Hide live transcript
+      liveTranscript.classList.remove('visible');
+      liveTranscriptText.textContent = '';
+    }
+  });
+
+} else {
+  micStatus.textContent = 'INDISPONÍVEL';
+  micIcon.style.opacity = '0.3';
+  micIcon.style.cursor = 'default';
+  addLine('[SISTEMA] Reconhecimento de voz não disponível neste navegador. Use o campo de texto.', 'system-msg');
+}
+
+// ══════════════════════════════════════════
+// [9] Name recognition - "Visão" triggers attention
+// ══════════════════════════════════════════
+let nameRecognitionCooldown = false;
+
+function triggerNameRecognition() {
+  if (nameRecognitionCooldown) return;
+  nameRecognitionCooldown = true;
+
+  // Flash mind stone
+  const faceSvg = document.getElementById('visionFace');
+  faceSvg.classList.add('mind-stone-flash');
+
+  // Set curious emotion briefly
+  const prevEmotion = currentEmotion;
+  setEmotion('curious');
+
+  // Play attention ping
+  playAttentionPing();
+
+  setTimeout(() => {
+    faceSvg.classList.remove('mind-stone-flash');
+    // Only reset emotion if still curious (not overridden by another state)
+    if (currentEmotion === 'curious' && visionState === 'listening') {
+      setEmotion('listening');
+    }
+    nameRecognitionCooldown = false;
+  }, 1000);
+}
+
+// Also check text input for name recognition
+const origTermInputHandler = termInput.onkeydown;
+termInput.addEventListener('input', () => {
+  const val = termInput.value.toLowerCase();
+  if (val.includes('visão') || val.includes('vision') || val.includes('visao')) {
+    triggerNameRecognition();
+  }
+});
+
+// ══════════════════════════════════════════
+// Keyboard shortcuts (M = mic, S = sound)
+// ══════════════════════════════════════════
+document.addEventListener('keydown', (ev) => {
+  if (ev.target === termInput) return;
+  if (ev.key === 'm' || ev.key === 'M') {
+    if (SpeechRecognition && recognition) {
+      micIcon.click();
+    }
+  }
+  if (ev.key === 's' || ev.key === 'S') {
+    soundToggle.click();
+  }
+});
+
+// Fade keyboard hints after 8 seconds
+const keyboardHints = document.getElementById('keyboardHints');
+setTimeout(() => {
+  keyboardHints.style.opacity = '0';
+}, 8000);
+
+// ══════════════════════════════════════════
+// MULTI-AGENT SYSTEM
+// ══════════════════════════════════════════
+const agentDefinitions = [
+  { id: 'agentArtista', tag: 'ARTISTA', name: 'ARTISTA', desc: 'Gera imagens', pitch: 600 },
+  { id: 'agentCineasta', tag: 'CINEASTA', name: 'CINEASTA', desc: 'Gera vídeos', pitch: 550 },
+  { id: 'agentSocial', tag: 'SOCIAL', name: 'SOCIAL', desc: 'Posta em redes sociais', pitch: 500 },
+  { id: 'agentAnalista', tag: 'ANALISTA', name: 'ANALISTA', desc: 'Analisa dados', pitch: 450 },
+  { id: 'agentProgramador', tag: 'PROGRAMADOR', name: 'PROGRAMADOR', desc: 'Escreve código', pitch: 400 },
+  { id: 'agentPesquisador', tag: 'PESQUISADOR', name: 'PESQUISADOR', desc: 'Pesquisa informações', pitch: 350 },
+  { id: 'agentMusico', tag: 'MÚSICO', name: 'MÚSICO', desc: 'Cria música', pitch: 700 }
+];
+
+const agentStatusBar = document.getElementById('agentStatusBar');
+const agentConnectionsSvg = document.getElementById('agentConnectionsSvg');
+let activeAgentTimeout = null;
+let currentActiveAgent = null;
+
+// Position agent nodes in a circle around Vision's face
+function positionAgentNodes() {
+  const agentCount = agentDefinitions.length;
+  const radius = Math.min(280, Math.min(window.innerWidth, window.innerHeight) * 0.3);
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2 - 20;
+
+  agentDefinitions.forEach((agent, i) => {
+    const el = document.getElementById(agent.id);
+    if (!el) return;
+    const angle = (i / agentCount) * Math.PI * 2 - Math.PI / 2; // start from top
+    const x = centerX + radius * Math.cos(angle);
+    const y = centerY + radius * Math.sin(angle);
+    el.style.left = (x - 20) + 'px';
+    el.style.top = (y - 20) + 'px';
+  });
+
+  drawAgentConnections();
+}
+
+// Draw SVG connection lines from each agent to center
+function drawAgentConnections() {
+  agentConnectionsSvg.innerHTML = '';
+  agentConnectionsSvg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
+
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2 - 20;
+
+  agentDefinitions.forEach((agent, i) => {
+    const el = document.getElementById(agent.id);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const ax = rect.left + rect.width / 2;
+    const ay = rect.top + rect.height / 2;
+
+    // Default faint dashed line
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', centerX);
+    line.setAttribute('y1', centerY);
+    line.setAttribute('x2', ax);
+    line.setAttribute('y2', ay);
+    line.setAttribute('stroke', 'rgba(255,255,255,0.08)');
+    line.setAttribute('stroke-width', '0.5');
+    line.setAttribute('stroke-dasharray', '4 6');
+    line.setAttribute('data-agent-line', agent.tag);
+    line.id = 'agentLine_' + agent.tag;
+    agentConnectionsSvg.appendChild(line);
+  });
+}
+
+// Play agent activation sound
+function playAgentActivationSound(pitch) {
+  if (!audioCtx) initAmbientSound();
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(pitch, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(pitch * 1.5, audioCtx.currentTime + 0.1);
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.06, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.3);
+}
+
+// Play boot ping sound (shorter, quieter)
+function playAgentBootPing(pitch) {
+  if (!audioCtx) initAmbientSound();
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(pitch, audioCtx.currentTime);
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.15);
+}
+
+// Activate an agent visually
+function activateAgent(agentTag) {
+  // Find agent definition
+  const agentDef = agentDefinitions.find(a => a.tag === agentTag);
+  if (!agentDef) return;
+
+  // Deactivate previous
+  deactivateAgent();
+
+  currentActiveAgent = agentTag;
+  const el = document.getElementById(agentDef.id);
+  if (el) el.classList.add('active');
+
+  // Show status bar
+  const statusTexts = {
+    'ARTISTA': 'GERANDO IMAGEM...',
+    'CINEASTA': 'GERANDO VÍDEO...',
+    'SOCIAL': 'PUBLICANDO...',
+    'ANALISTA': 'ANALISANDO DADOS...',
+    'PROGRAMADOR': 'ESCREVENDO CÓDIGO...',
+    'PESQUISADOR': 'PESQUISANDO...',
+    'MÚSICO': 'CRIANDO MÚSICA...'
+  };
+  agentStatusBar.textContent = 'AGENTE ATIVO: ' + agentDef.name + ' | ' + (statusTexts[agentTag] || 'PROCESSANDO...');
+  agentStatusBar.classList.add('visible');
+
+  // Brighten the connection line
+  const line = document.getElementById('agentLine_' + agentTag);
+  if (line) {
+    line.setAttribute('stroke', 'rgba(100,180,255,0.5)');
+    line.setAttribute('stroke-width', '1.2');
+    line.setAttribute('stroke-dasharray', '6 4');
+    line.style.animation = 'agentLinePulse 0.8s linear infinite';
+  }
+
+  // Play activation sound
+  playAgentActivationSound(agentDef.pitch);
+
+  // Vision shows 'curious' briefly then 'speaking'
+  setEmotion('curious');
+  setTimeout(() => {
+    if (visionState === 'speaking') setEmotion('speaking');
+  }, 600);
+
+  // Mind stone pulse
+  const faceSvg = document.getElementById('visionFace');
+  faceSvg.classList.add('mind-stone-flash');
+  setTimeout(() => faceSvg.classList.remove('mind-stone-flash'), 1000);
+
+  // Energy waves
+  const wrapper = document.getElementById('visionFaceWrapper');
+  const rect = wrapper.getBoundingClientRect();
+  const stoneX = rect.left + (150/300) * rect.width;
+  const stoneY = rect.top + (95/500) * rect.height;
+  for (let i = 0; i < 3; i++) {
+    setTimeout(() => {
+      const wave = document.createElement('div');
+      wave.className = 'energy-wave';
+      wave.style.left = stoneX + 'px';
+      wave.style.top = stoneY + 'px';
+      document.body.appendChild(wave);
+      setTimeout(() => wave.remove(), 1200);
+    }, i * 300);
+  }
+
+  // Auto deactivate after 5 seconds
+  activeAgentTimeout = setTimeout(() => {
+    deactivateAgent();
+  }, 5000);
+}
+
+function deactivateAgent() {
+  if (activeAgentTimeout) {
+    clearTimeout(activeAgentTimeout);
+    activeAgentTimeout = null;
+  }
+  if (currentActiveAgent) {
+    const agentDef = agentDefinitions.find(a => a.tag === currentActiveAgent);
+    if (agentDef) {
+      const el = document.getElementById(agentDef.id);
+      if (el) el.classList.remove('active');
+    }
+    // Reset connection line
+    const line = document.getElementById('agentLine_' + currentActiveAgent);
+    if (line) {
+      line.setAttribute('stroke', 'rgba(255,255,255,0.08)');
+      line.setAttribute('stroke-width', '0.5');
+      line.setAttribute('stroke-dasharray', '4 6');
+      line.style.animation = '';
+    }
+    currentActiveAgent = null;
+  }
+  agentStatusBar.classList.remove('visible');
+}
+
+// Parse response for agent tags
+function parseAgentTag(responseText) {
+  const agentTags = ['ARTISTA', 'CINEASTA', 'SOCIAL', 'ANALISTA', 'PROGRAMADOR', 'PESQUISADOR', 'MÚSICO'];
+  for (const tag of agentTags) {
+    const pattern = new RegExp('^\\s*\\[' + tag + '\\]\\s*', 'i');
+    if (pattern.test(responseText)) {
+      const cleanText = responseText.replace(pattern, '').trim();
+      return { tag, cleanText };
+    }
+  }
+  return { tag: null, cleanText: responseText };
+}
+
+// Agent hover effects on connection lines
+agentDefinitions.forEach(agent => {
+  const el = document.getElementById(agent.id);
+  if (!el) return;
+  el.addEventListener('mouseenter', () => {
+    if (currentActiveAgent === agent.tag) return;
+    const line = document.getElementById('agentLine_' + agent.tag);
+    if (line) {
+      line.setAttribute('stroke', 'rgba(255,255,255,0.25)');
+      line.setAttribute('stroke-width', '0.8');
+    }
+  });
+  el.addEventListener('mouseleave', () => {
+    if (currentActiveAgent === agent.tag) return;
+    const line = document.getElementById('agentLine_' + agent.tag);
+    if (line) {
+      line.setAttribute('stroke', 'rgba(255,255,255,0.08)');
+      line.setAttribute('stroke-width', '0.5');
+    }
+  });
+});
+
+// Keyboard shortcuts 1-7 to highlight agents
+document.addEventListener('keydown', (ev) => {
+  if (ev.target === termInput) return;
+  const num = parseInt(ev.key);
+  if (num >= 1 && num <= 7) {
+    const agent = agentDefinitions[num - 1];
+    if (agent) {
+      const el = document.getElementById(agent.id);
+      if (!el) return;
+      // Toggle highlight briefly
+      el.classList.add('active');
+      playAgentActivationSound(agent.pitch);
+      setTimeout(() => {
+        if (currentActiveAgent !== agent.tag) {
+          el.classList.remove('active');
+        }
+      }, 2000);
+    }
+  }
+});
+
+// Position on load and resize
+positionAgentNodes();
+window.addEventListener('resize', () => {
+  positionAgentNodes();
+});
+
+// ══════════════════════════════════════════
+// Loading sequence animation
+// ══════════════════════════════════════════
+(function bootSequence() {
+  const overlay = document.getElementById('loadingOverlay');
+  const bootScan = document.getElementById('bootScanLine');
+  const face = document.getElementById('visionFaceWrapper');
+  const readoutTL = document.getElementById('readoutTL');
+  const readoutTR = document.getElementById('readoutTR');
+  const readoutBL = document.getElementById('readoutBL');
+  const readoutBR = document.getElementById('readoutBR');
+  const terminal = document.querySelector('.terminal');
+  const titleBlock = document.getElementById('titleBlock');
+  const statusInd = document.querySelector('.status-indicators');
+
+  // Initially hide elements
+  face.classList.add('boot-hidden');
+  readoutTL.classList.add('boot-slide-left');
+  readoutTR.classList.add('boot-slide-right');
+  readoutBL.classList.add('boot-slide-left');
+  readoutBR.classList.add('boot-slide-right');
+  terminal.classList.add('boot-slide-up');
+  titleBlock.classList.add('boot-hidden');
+  statusInd.classList.add('boot-hidden');
+
+  // Step 1: Scan line appears (0.5s)
+  setTimeout(() => {
+    bootScan.classList.add('active');
+  }, 500);
+
+  // Step 2: Face fades in (1.0s)
+  setTimeout(() => {
+    face.classList.remove('boot-hidden');
+    face.classList.add('boot-visible');
+  }, 1000);
+
+  // Step 3: Title + status (1.5s)
+  setTimeout(() => {
+    titleBlock.classList.remove('boot-hidden');
+    titleBlock.classList.add('boot-visible');
+    statusInd.classList.remove('boot-hidden');
+    statusInd.classList.add('boot-visible');
+  }, 1500);
+
+  // Step 4: Data readouts slide in (2.0s)
+  setTimeout(() => {
+    readoutTL.classList.remove('boot-slide-left');
+    readoutTL.classList.add('boot-visible');
+    readoutTR.classList.remove('boot-slide-right');
+    readoutTR.classList.add('boot-visible');
+    readoutBL.classList.remove('boot-slide-left');
+    readoutBL.classList.add('boot-visible');
+    readoutBR.classList.remove('boot-slide-right');
+    readoutBR.classList.add('boot-visible');
+  }, 2000);
+
+  // Step 5: Terminal slides up (2.5s)
+  setTimeout(() => {
+    terminal.classList.remove('boot-slide-up');
+    terminal.classList.add('boot-visible');
+  }, 2500);
+
+  // Step 6: Remove overlay, hide scan line (3.0s)
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+    bootScan.classList.remove('active');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      bootScan.style.display = 'none';
+    }, 800);
+  }, 3000);
+
+  // Step 7: Agent nodes appear one by one clockwise (3.5s - 5.6s)
+  agentDefinitions.forEach((agent, i) => {
+    setTimeout(() => {
+      const el = document.getElementById(agent.id);
+      if (el) {
+        el.classList.add('visible');
+        playAgentBootPing(agent.pitch);
+      }
+    }, 3500 + i * 300);
+  });
+
+  // Step 8: Draw agent connection lines after all nodes visible (6.0s)
+  setTimeout(() => {
+    drawAgentConnections();
+  }, 6000);
+})();
+
+// ══════════════════════════════════════════
+// Initial greeting (after boot sequence)
+// ══════════════════════════════════════════
+setTimeout(() => {
+  const greeting = 'Olá, senhor. Meus sistemas estão operacionais. Sou o Visão, e estou aqui para auxiliá-lo no que precisar.';
+  addLineTyped('[VISION] ' + greeting, 'vision-msg', () => {
+    speak(greeting);
+  });
+}, 3500);
+</script>
+</body>
+</html>
