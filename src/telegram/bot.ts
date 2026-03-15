@@ -5,6 +5,7 @@ import { generateFlowImage, generateFlowVideo } from "../agent/flow";
 import { postToInstagram } from "../agent/instagram";
 import { addMedia, getLastVideos, mergeVideos } from "../agent/media";
 import { listRepos, getRepoTree, readFile, executeCoderTask, isGitHubConfigured } from "../agent/coder";
+import { logMedia, logAgent, clearHistory } from "../db/memory";
 import { InputFile } from "grammy";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
@@ -19,6 +20,32 @@ if (!BOT_TOKEN) {
 }
 
 const bot = new Bot(BOT_TOKEN);
+
+// ========== RATE LIMITING ==========
+const generationTimestamps: Map<string, number[]> = new Map();
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+
+function checkRateLimit(userId: string): { allowed: boolean; minutesLeft: number } {
+  const now = Date.now();
+  const timestamps = generationTimestamps.get(userId) || [];
+  // Remove timestamps older than 1 hour
+  const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+  generationTimestamps.set(userId, recent);
+
+  if (recent.length >= RATE_LIMIT_MAX) {
+    const oldest = recent[0];
+    const msLeft = RATE_LIMIT_WINDOW_MS - (now - oldest);
+    return { allowed: false, minutesLeft: Math.ceil(msLeft / 60000) };
+  }
+  return { allowed: true, minutesLeft: 0 };
+}
+
+function recordGeneration(userId: string): void {
+  const timestamps = generationTimestamps.get(userId) || [];
+  timestamps.push(Date.now());
+  generationTimestamps.set(userId, timestamps);
+}
 
 // Middleware: verificar usuários permitidos (se configurado)
 bot.use(async (ctx: Context, next) => {
@@ -44,19 +71,58 @@ bot.on("message:text", async (ctx) => {
   console.log(`[${new Date().toISOString()}] ${userName} (${userId}): ${text}`);
 
   try {
+    // ========== /help ==========
+    if (text === "/help") {
+      const helpMessage =
+        `🤖 *Comandos do Opencraws:*\n\n` +
+        `🎨 /flowimg [prompt] - Gerar imagem via Google Flow\n` +
+        `🎬 /flowvid [prompt] - Gerar vídeo via Google Flow\n` +
+        `🖼️ /img [prompt] - Gerar imagem (provedores alternativos)\n` +
+        `🎥 /video [prompt] - Gerar vídeo\n` +
+        `💬 Fale normalmente - IA responde naturalmente\n` +
+        `📱 "posta no instagram" - Posta mídia no Instagram\n` +
+        `🔗 "junta os vídeos" - Merge vídeos com FFmpeg\n` +
+        `❌ /clear - Limpar histórico\n` +
+        `ℹ️ /help - Esta mensagem`;
+      await ctx.reply(helpMessage, { parse_mode: "Markdown" }).catch(() => ctx.reply(helpMessage));
+      return;
+    }
+
+    // ========== /clear ==========
+    if (text === "/clear") {
+      try {
+        clearHistory(userId);
+        await ctx.reply("🧹 Histórico limpo! Podemos começar de novo.");
+      } catch (e: any) {
+        console.error(`[${new Date().toISOString()}] [ERRO DB] clearHistory: ${e.message}`);
+        await ctx.reply("❌ Erro ao limpar histórico. Tente novamente.");
+      }
+      return;
+    }
+
     // ========== GOOGLE FLOW - IMAGEM ==========
     const flowImgMatch = text.match(/^\/flowimg\s+(.+)/i);
     if (flowImgMatch) {
+      const rateCheck = checkRateLimit(userId);
+      if (!rateCheck.allowed) {
+        await ctx.reply(`⏳ Limite de gerações atingido. Tente novamente em ${rateCheck.minutesLeft} minutos.`);
+        return;
+      }
       const prompt = flowImgMatch[1];
       await ctx.reply("🎨 Gerando imagem via Google Flow... (pode levar ~30s)");
       await ctx.replyWithChatAction("upload_photo");
+      logAgent(userId, "flow", "generateFlowImage", "started");
       const imgBuffer = await generateFlowImage(prompt);
       if (imgBuffer) {
+        recordGeneration(userId);
         addMedia(userId, imgBuffer, "image", prompt);
+        logMedia(userId, "image", prompt, "google-flow", imgBuffer.length);
+        logAgent(userId, "flow", "generateFlowImage", "success");
         await ctx.replyWithPhoto(new InputFile(imgBuffer, "flow-image.png"), {
           caption: `🎨 Google Flow\n\n${prompt}`,
         });
       } else {
+        logAgent(userId, "flow", "generateFlowImage", "failed");
         await ctx.reply("❌ Não consegui gerar a imagem via Flow. Tente /img para usar outros provedores.");
       }
       return;
@@ -65,16 +131,26 @@ bot.on("message:text", async (ctx) => {
     // ========== GOOGLE FLOW - VIDEO ==========
     const flowVidMatch = text.match(/^\/flowvid\s+(.+)/i);
     if (flowVidMatch) {
+      const rateCheck = checkRateLimit(userId);
+      if (!rateCheck.allowed) {
+        await ctx.reply(`⏳ Limite de gerações atingido. Tente novamente em ${rateCheck.minutesLeft} minutos.`);
+        return;
+      }
       const prompt = flowVidMatch[1];
       await ctx.reply("🎬 Gerando vídeo via Google Flow... (pode levar ~1-3 min)");
       await ctx.replyWithChatAction("upload_video");
+      logAgent(userId, "flow", "generateFlowVideo", "started");
       const vidBuffer = await generateFlowVideo(prompt);
       if (vidBuffer) {
+        recordGeneration(userId);
         addMedia(userId, vidBuffer, "video", prompt);
+        logMedia(userId, "video", prompt, "google-flow", vidBuffer.length);
+        logAgent(userId, "flow", "generateFlowVideo", "success");
         await ctx.replyWithVideo(new InputFile(vidBuffer, "flow-video.mp4"), {
           caption: `🎬 Google Flow\n\n${prompt}`,
         });
       } else {
+        logAgent(userId, "flow", "generateFlowVideo", "failed");
         await ctx.reply("❌ Não consegui gerar o vídeo via Flow. Tente /video para usar Gemini Veo direto.");
       }
       return;
@@ -137,13 +213,23 @@ bot.on("message:text", async (ctx) => {
     // ========== COMANDOS DE IMAGEM ==========
     const imgMatch = text.match(/^\/imagem\s+(.+)/i) || text.match(/^\/img\s+(.+)/i);
     if (imgMatch) {
+      const rateCheck = checkRateLimit(userId);
+      if (!rateCheck.allowed) {
+        await ctx.reply(`⏳ Limite de gerações atingido. Tente novamente em ${rateCheck.minutesLeft} minutos.`);
+        return;
+      }
       await ctx.reply("🎨 Gerando imagem... (pode levar ~30s)");
       await ctx.replyWithChatAction("upload_photo");
+      logAgent(userId, "image-gen", "generateImage", "started");
       const imgBuffer = await generateImage(imgMatch[1]);
       if (imgBuffer) {
+        recordGeneration(userId);
         addMedia(userId, imgBuffer, "image", imgMatch[1]);
+        logMedia(userId, "image", imgMatch[1], "alternative", imgBuffer.length);
+        logAgent(userId, "image-gen", "generateImage", "success");
         await ctx.replyWithPhoto(new InputFile(imgBuffer, "image.png"), { caption: imgMatch[1] });
       } else {
+        logAgent(userId, "image-gen", "generateImage", "failed");
         await ctx.reply("Não consegui gerar a imagem. Tente outro prompt.");
       }
       return;
@@ -152,13 +238,23 @@ bot.on("message:text", async (ctx) => {
     // ========== COMANDO DE VÍDEO ==========
     const vidMatch = text.match(/^\/video\s+(.+)/i) || text.match(/^\/vídeo\s+(.+)/i);
     if (vidMatch) {
+      const rateCheck = checkRateLimit(userId);
+      if (!rateCheck.allowed) {
+        await ctx.reply(`⏳ Limite de gerações atingido. Tente novamente em ${rateCheck.minutesLeft} minutos.`);
+        return;
+      }
       await ctx.reply("🎬 Gerando vídeo com Gemini Veo... (pode levar ~1-2 min)");
       await ctx.replyWithChatAction("upload_video");
+      logAgent(userId, "video-gen", "generateVideo", "started");
       const vidBuffer = await generateVideo(vidMatch[1]);
       if (vidBuffer) {
+        recordGeneration(userId);
         addMedia(userId, vidBuffer, "video", vidMatch[1]);
+        logMedia(userId, "video", vidMatch[1], "gemini-veo", vidBuffer.length);
+        logAgent(userId, "video-gen", "generateVideo", "success");
         await ctx.replyWithVideo(new InputFile(vidBuffer, "video.mp4"), { caption: vidMatch[1] });
       } else {
+        logAgent(userId, "video-gen", "generateVideo", "failed");
         await ctx.reply("❌ Não consegui gerar o vídeo. Verifique se a GEMINI_API_KEY está configurada e tente outro prompt.");
       }
       return;
@@ -321,17 +417,28 @@ bot.on("message:text", async (ctx) => {
       // Detect if user wants video
       const wantsVideo = /\b(video|vídeo|filme|animação|animacao|clip)\b/i.test(text);
 
+      const rateCheck = checkRateLimit(userId);
+      if (!rateCheck.allowed) {
+        await ctx.reply(`⏳ Limite de gerações atingido. Tente novamente em ${rateCheck.minutesLeft} minutos.`);
+        return;
+      }
+
       if (wantsVideo) {
         await ctx.reply("🎬 Gerando vídeo via Google Flow e postando no Instagram... (pode levar ~2-4 min)");
         await ctx.replyWithChatAction("upload_video");
+        logAgent(userId, "instagram", "generateFlowVideo+post", "started");
         const vidBuffer = await generateFlowVideo(prompt);
         if (!vidBuffer) {
+          logAgent(userId, "instagram", "generateFlowVideo+post", "failed");
           await ctx.reply("❌ Não consegui gerar o vídeo via Flow.");
           return;
         }
+        recordGeneration(userId);
         addMedia(userId, vidBuffer, "video", prompt);
+        logMedia(userId, "video", prompt, "google-flow+instagram", vidBuffer.length);
         await ctx.reply("📤 Vídeo gerado! Postando no Instagram...");
         const posted = await postToInstagram(vidBuffer, prompt, true);
+        logAgent(userId, "instagram", "postToInstagram-video", posted ? "success" : "failed");
         if (posted) {
           await ctx.replyWithVideo(new InputFile(vidBuffer, "instagram-video.mp4"), {
             caption: `✅ Vídeo postado no Instagram!\n\n${prompt}`,
@@ -344,14 +451,19 @@ bot.on("message:text", async (ctx) => {
       } else {
         await ctx.reply("🎨 Gerando imagem via Google Flow e postando no Instagram... (pode levar ~1-2 min)");
         await ctx.replyWithChatAction("upload_photo");
+        logAgent(userId, "instagram", "generateFlowImage+post", "started");
         const imgBuffer = await generateFlowImage(prompt);
         if (!imgBuffer) {
+          logAgent(userId, "instagram", "generateFlowImage+post", "failed");
           await ctx.reply("❌ Não consegui gerar a imagem via Flow.");
           return;
         }
+        recordGeneration(userId);
         addMedia(userId, imgBuffer, "image", prompt);
+        logMedia(userId, "image", prompt, "google-flow+instagram", imgBuffer.length);
         await ctx.reply("📤 Imagem gerada! Postando no Instagram...");
         const posted = await postToInstagram(imgBuffer, prompt, false);
+        logAgent(userId, "instagram", "postToInstagram-image", posted ? "success" : "failed");
         if (posted) {
           await ctx.replyWithPhoto(new InputFile(imgBuffer, "instagram-image.png"), {
             caption: `✅ Imagem postada no Instagram!\n\n${prompt}`,
@@ -371,32 +483,52 @@ bot.on("message:text", async (ctx) => {
     const videoKeywords = /\b(gera|cria|faz|faça|faca|gere|crie|mostr).*\b(video|vídeo|filme|animação|animacao|clip)\b|\b(video|vídeo|filme)\b.*\b(de |do |da |um |uma )\b/i;
 
     if (videoKeywords.test(text)) {
+      const rateCheck = checkRateLimit(userId);
+      if (!rateCheck.allowed) {
+        await ctx.reply(`⏳ Limite de gerações atingido. Tente novamente em ${rateCheck.minutesLeft} minutos.`);
+        return;
+      }
       const prompt = text.replace(/^(gera|cria|faz|faça|faca|gere|crie|mostra?|me\s)?\s*(um |uma |o |a )?\s*(video|vídeo|filme|animação|animacao|clip)\s*(de |do |da |dos |das |com |sobre )?\s*/i, "").trim() || text;
       await ctx.reply("🎬 Gerando vídeo via Google Flow... (pode levar ~1-3 min)");
       await ctx.replyWithChatAction("upload_video");
+      logAgent(userId, "flow", "generateFlowVideo-natural", "started");
       const vidBuffer = await generateFlowVideo(prompt);
       if (vidBuffer) {
+        recordGeneration(userId);
         addMedia(userId, vidBuffer, "video", prompt);
+        logMedia(userId, "video", prompt, "google-flow", vidBuffer.length);
+        logAgent(userId, "flow", "generateFlowVideo-natural", "success");
         await ctx.replyWithVideo(new InputFile(vidBuffer, "flow-video.mp4"), {
           caption: `🎬 Google Flow\n\n${prompt}`,
         });
       } else {
+        logAgent(userId, "flow", "generateFlowVideo-natural", "failed");
         await ctx.reply("❌ Não consegui gerar o vídeo. Pode ser falta de créditos no Flow.");
       }
       return;
     }
 
     if (imageKeywords.test(text)) {
+      const rateCheck = checkRateLimit(userId);
+      if (!rateCheck.allowed) {
+        await ctx.reply(`⏳ Limite de gerações atingido. Tente novamente em ${rateCheck.minutesLeft} minutos.`);
+        return;
+      }
       const prompt = text.replace(/^(gera|cria|faz|faça|faca|gere|crie|desenha?|pinta?|mostra?|me\s)?\s*(um |uma |o |a )?\s*(imagem|foto|picture|image|desenho|ilustração|ilustracao|arte|retrato|pintura)\s*(de |do |da |dos |das |com |sobre )?\s*/i, "").trim() || text;
       await ctx.reply("🎨 Gerando imagem via Google Flow... (pode levar ~30s)");
       await ctx.replyWithChatAction("upload_photo");
+      logAgent(userId, "flow", "generateFlowImage-natural", "started");
       const imgBuffer = await generateFlowImage(prompt);
       if (imgBuffer) {
+        recordGeneration(userId);
         addMedia(userId, imgBuffer, "image", prompt);
+        logMedia(userId, "image", prompt, "google-flow", imgBuffer.length);
+        logAgent(userId, "flow", "generateFlowImage-natural", "success");
         await ctx.replyWithPhoto(new InputFile(imgBuffer, "flow-image.png"), {
           caption: `🎨 ${prompt}`,
         });
       } else {
+        logAgent(userId, "flow", "generateFlowImage-natural", "failed");
         await ctx.reply("❌ Não consegui gerar a imagem.");
       }
       return;

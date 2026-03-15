@@ -2,8 +2,11 @@ import "dotenv/config";
 import http from "http";
 import { initDatabase, getStats, getRecentActivity, getAgentStats, getConversationCounts, saveMessage } from "./db/memory";
 import bot from "./telegram/bot";
+import { Pool } from "pg";
 
 const PORT = parseInt(process.env.PORT || "10000");
+const startTime = Date.now();
+const APP_VERSION = "1.0.0";
 
 console.log("🚀 Iniciando Opencrawsbuties...");
 console.log(`⏰ ${new Date().toLocaleString("pt-BR")}`);
@@ -35,6 +38,57 @@ const server = http.createServer(async (req, res) => {
   };
 
   try {
+    // GET /api/health
+    if (url === '/api/health' && req.method === 'GET') {
+      let dbStatus = "unknown";
+      try {
+        const pool = new Pool({
+          connectionString: process.env.DATABASE_URL || "",
+          ssl: { rejectUnauthorized: false },
+          max: 1,
+        });
+        const client = await pool.connect();
+        await client.query("SELECT 1");
+        client.release();
+        await pool.end();
+        dbStatus = "connected";
+      } catch (e: any) {
+        dbStatus = `error: ${e.message}`;
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        status: "online",
+        version: APP_VERSION,
+        uptime: process.uptime(),
+        uptimeFormatted: `${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m`,
+        startedAt: new Date(startTime).toISOString(),
+        database: dbStatus,
+      }));
+      return;
+    }
+
+    // GET /api/media/recent
+    if (url === '/api/media/recent' && req.method === 'GET') {
+      try {
+        const pool = new Pool({
+          connectionString: process.env.DATABASE_URL || "",
+          ssl: { rejectUnauthorized: false },
+          max: 1,
+        });
+        const result = await pool.query(
+          "SELECT id, user_id, type, prompt, provider, file_size, created_at FROM media_log ORDER BY created_at DESC LIMIT 5"
+        );
+        await pool.end();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result.rows));
+      } catch (e: any) {
+        console.error(`[${new Date().toISOString()}] [API] media/recent error:`, e.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to fetch recent media', details: e.message }));
+      }
+      return;
+    }
+
     // GET /api/stats
     if (url === '/api/stats' && req.method === 'GET') {
       const stats = await getStats();
@@ -80,9 +134,15 @@ const server = http.createServer(async (req, res) => {
       const body = await parseBody();
       const { userId, role, content } = body;
       if (userId && role && content) {
-        saveMessage(userId, role, content);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true }));
+        try {
+          saveMessage(userId, role, content);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e: any) {
+          console.error(`[${new Date().toISOString()}] [API] vision/chat save error:`, e.message);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Failed to save message', details: e.message }));
+        }
       } else {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Missing fields: userId, role, content required' }));

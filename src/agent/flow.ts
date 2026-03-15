@@ -190,11 +190,11 @@ async function checkFailed(page: Page): Promise<boolean> {
 
 // ========== IMAGEM via Google Flow ==========
 
-export async function generateFlowImage(prompt: string): Promise<Buffer | null> {
+async function _generateFlowImageOnce(prompt: string): Promise<Buffer | null> {
   let page: Page | null = null;
 
   try {
-    console.log(`[Flow/IMG] Gerando via site: ${prompt.substring(0, 50)}...`);
+    console.log(`[${new Date().toISOString()}] [Flow/IMG] Gerando via site: ${prompt.substring(0, 50)}...`);
     const browser = await getBrowser();
     page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 720 });
@@ -207,14 +207,14 @@ export async function generateFlowImage(prompt: string): Promise<Buffer | null> 
     await new Promise(r => setTimeout(r, 3000));
 
     if (!(await typePrompt(page, prompt))) {
-      console.log("[Flow/IMG] Campo de prompt não encontrado");
+      console.log(`[${new Date().toISOString()}] [Flow/IMG] Campo de prompt não encontrado`);
       await page.close();
       return null;
     }
 
     await new Promise(r => setTimeout(r, 500));
     await clickCreate(page);
-    console.log("[Flow/IMG] Aguardando geração...");
+    console.log(`[${new Date().toISOString()}] [Flow/IMG] Aguardando geração...`);
 
     // Esperar a imagem (max 90s)
     for (let i = 0; i < 30; i++) {
@@ -223,7 +223,7 @@ export async function generateFlowImage(prompt: string): Promise<Buffer | null> 
       // Debug: salvar screenshot a cada 30s
       if (i === 10 || i === 20) {
         await page.screenshot({ path: path.join(__dirname, `../../debug_flow_${i}.png`) });
-        console.log(`[Flow/IMG] Debug screenshot salvo (iteração ${i})`);
+        console.log(`[${new Date().toISOString()}] [Flow/IMG] Debug screenshot salvo (iteração ${i})`);
       }
 
       // Buscar imagens de múltiplas formas
@@ -242,17 +242,17 @@ export async function generateFlowImage(prompt: string): Promise<Buffer | null> 
           }, img);
           if (size.w > 200 && size.h > 200 && !size.src.includes("logo") && !size.src.includes("icon") && !size.alt.includes("perfil") && !size.alt.includes("profile")) {
             images = [img];
-            console.log(`[Flow/IMG] Imagem grande encontrada: ${size.w}x${size.h} alt="${size.alt}"`);
+            console.log(`[${new Date().toISOString()}] [Flow/IMG] Imagem grande encontrada: ${size.w}x${size.h} alt="${size.alt}"`);
             break;
           }
         }
       }
 
       if (images.length > 0) {
-        console.log(`[Flow/IMG] ${images.length} imagem(ns) encontrada(s)!`);
+        console.log(`[${new Date().toISOString()}] [Flow/IMG] ${images.length} imagem(ns) encontrada(s)!`);
         const buf = await downloadImageFromPage(page, images[0]);
         if (buf && buf.length > 1000) {
-          console.log(`[Flow/IMG] OK! ${buf.length} bytes`);
+          console.log(`[${new Date().toISOString()}] [Flow/IMG] OK! ${buf.length} bytes`);
           await page.close();
           return buf;
         }
@@ -272,39 +272,53 @@ export async function generateFlowImage(prompt: string): Promise<Buffer | null> 
       })()`) as { hasProgress: boolean; hasFail: boolean };
 
       if (progress.hasProgress) {
-        if (i % 5 === 0) console.log("[Flow/IMG] Progresso detectado, aguardando...");
+        if (i % 5 === 0) console.log(`[${new Date().toISOString()}] [Flow/IMG] Progresso detectado, aguardando...`);
         continue; // Ainda gerando, não verificar falha
       }
 
       if (i > 10 && progress.hasFail) {
-        console.log("[Flow/IMG] Geração falhou no Flow");
+        console.log(`[${new Date().toISOString()}] [Flow/IMG] Geração falhou no Flow`);
         await page.screenshot({ path: path.join(__dirname, "../../debug_flow_fail.png") });
         break;
       }
 
-      if (i % 5 === 0) console.log(`[Flow/IMG] Aguardando... ${i * 3}s`);
+      if (i % 5 === 0) console.log(`[${new Date().toISOString()}] [Flow/IMG] Aguardando... ${i * 3}s`);
     }
 
     // Screenshot final pra debug
     await page.screenshot({ path: path.join(__dirname, "../../debug_flow_final.png") });
-    console.log("[Flow/IMG] Screenshot final salvo");
+    console.log(`[${new Date().toISOString()}] [Flow/IMG] Screenshot final salvo`);
 
     await page.close();
     return null;
   } catch (e: any) {
-    console.log("[Flow/IMG] Erro:", e.message);
+    console.error(`[${new Date().toISOString()}] [Flow/IMG] Erro: ${e.message}`);
     if (page) await page.close().catch(() => {});
     return null;
   }
 }
 
+export async function generateFlowImage(prompt: string): Promise<Buffer | null> {
+  const result = await _generateFlowImageOnce(prompt);
+  if (result) return result;
+
+  // Retry once after 5 seconds
+  console.log(`[${new Date().toISOString()}] [Flow/IMG] Primeira tentativa falhou, retentando em 5s...`);
+  await new Promise(r => setTimeout(r, 5000));
+  const retryResult = await _generateFlowImageOnce(prompt);
+  if (!retryResult) {
+    console.error(`[${new Date().toISOString()}] [Flow/IMG] Segunda tentativa também falhou para: "${prompt.substring(0, 50)}"`);
+  }
+  return retryResult;
+}
+
 // ========== VÍDEO via Google Flow ==========
 
-export async function generateFlowVideo(prompt: string): Promise<Buffer | null> {
+async function _generateFlowVideoOnce(prompt: string): Promise<Buffer | null> {
   let page: Page | null = null;
 
   try {
-    console.log(`[Flow/VID] Gerando via site: ${prompt.substring(0, 50)}...`);
+    console.log(`[${new Date().toISOString()}] [Flow/VID] Gerando via site: ${prompt.substring(0, 50)}...`);
     const browser = await getBrowser();
     page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 720 });
@@ -322,7 +336,7 @@ export async function generateFlowVideo(prompt: string): Promise<Buffer | null> 
       const text = await page.evaluate((el: any) => el.textContent || "", btn);
       if (text.includes("Banana") || text.includes("banana") || text.includes("crop_16_9")) {
         await btn.click();
-        console.log(`[Flow/VID] Menu de modelo aberto: "${text.substring(0, 40)}"`);
+        console.log(`[${new Date().toISOString()}] [Flow/VID] Menu de modelo aberto: "${text.substring(0, 40)}"`);
         await new Promise(r => setTimeout(r, 1500));
         break;
       }
@@ -334,7 +348,7 @@ export async function generateFlowVideo(prompt: string): Promise<Buffer | null> 
       const text = await page.evaluate((el: any) => el.textContent || "", tab);
       if (text.includes("deo") || text.includes("Video") || text.includes("videocam")) {
         await tab.click();
-        console.log(`[Flow/VID] Tab Vídeo selecionada: "${text.trim()}"`);
+        console.log(`[${new Date().toISOString()}] [Flow/VID] Tab Vídeo selecionada: "${text.trim()}"`);
         await new Promise(r => setTimeout(r, 1000));
         break;
       }
@@ -346,7 +360,7 @@ export async function generateFlowVideo(prompt: string): Promise<Buffer | null> 
       const text = await page.evaluate((el: any) => el.textContent?.trim() || "", tab);
       if (text === "x1") {
         await tab.click();
-        console.log("[Flow/VID] Quantidade x1 selecionada");
+        console.log(`[${new Date().toISOString()}] [Flow/VID] Quantidade x1 selecionada`);
         await new Promise(r => setTimeout(r, 500));
         break;
       }
@@ -359,18 +373,18 @@ export async function generateFlowVideo(prompt: string): Promise<Buffer | null> 
     // 4. Digitar o prompt - clicar no campo de texto na parte inferior
     await page.screenshot({ path: path.join(__dirname, "../../debug_flowvid_before_type.png") });
     if (!(await typePrompt(page, prompt))) {
-      console.log("[Flow/VID] typePrompt falhou, tentando fallback...");
+      console.log(`[${new Date().toISOString()}] [Flow/VID] typePrompt falhou, tentando fallback...`);
       // Fallback: clicar diretamente nas coordenadas do campo de prompt
       await page.mouse.click(640, 624); // centro do campo de prompt
       await new Promise(r => setTimeout(r, 500));
       await page.keyboard.type(prompt, { delay: 20 });
     }
-    console.log("[Flow/VID] Prompt digitado");
+    console.log(`[${new Date().toISOString()}] [Flow/VID] Prompt digitado`);
     await page.screenshot({ path: path.join(__dirname, "../../debug_flowvid_after_type.png") });
 
     await new Promise(r => setTimeout(r, 500));
     await clickCreate(page);
-    console.log("[Flow/VID] Aguardando geração de vídeo...");
+    console.log(`[${new Date().toISOString()}] [Flow/VID] Aguardando geração de vídeo...`);
 
     // Esperar vídeo (max 5 min)
     let videoBuffer: Buffer | null = null;
@@ -395,7 +409,7 @@ export async function generateFlowVideo(prompt: string): Promise<Buffer | null> 
         }, vid);
 
         if (src && src.startsWith("http")) {
-          console.log("[Flow/VID] Vídeo encontrado, baixando...");
+          console.log(`[${new Date().toISOString()}] [Flow/VID] Vídeo encontrado, baixando...`);
           const b64: string | null = await page.evaluate(async (url: string) => {
             try {
               const res = await fetch(url);
@@ -414,7 +428,7 @@ export async function generateFlowVideo(prompt: string): Promise<Buffer | null> 
           if (b64) {
             videoBuffer = Buffer.from(b64, "base64");
             if (videoBuffer.length > 1000) {
-              console.log(`[Flow/VID] OK! ${videoBuffer.length} bytes`);
+              console.log(`[${new Date().toISOString()}] [Flow/VID] OK! ${videoBuffer.length} bytes`);
               await page.close();
               return videoBuffer;
             }
@@ -427,7 +441,7 @@ export async function generateFlowVideo(prompt: string): Promise<Buffer | null> 
       for (const link of downloadLinks) {
         const href: string = await page.evaluate((el: any) => el.href || "", link);
         if (href && href.startsWith("http")) {
-          console.log("[Flow/VID] Link de download encontrado");
+          console.log(`[${new Date().toISOString()}] [Flow/VID] Link de download encontrado`);
           const b64: string | null = await page.evaluate(async (url: string) => {
             try {
               const res = await fetch(url);
@@ -446,7 +460,7 @@ export async function generateFlowVideo(prompt: string): Promise<Buffer | null> 
           if (b64) {
             videoBuffer = Buffer.from(b64, "base64");
             if (videoBuffer.length > 1000) {
-              console.log(`[Flow/VID] OK via download! ${videoBuffer.length} bytes`);
+              console.log(`[${new Date().toISOString()}] [Flow/VID] OK via download! ${videoBuffer.length} bytes`);
               await page.close();
               return videoBuffer;
             }
@@ -468,26 +482,40 @@ export async function generateFlowVideo(prompt: string): Promise<Buffer | null> 
       })()`) as { hasProgress: boolean; hasFail: boolean };
 
       if (progress.hasProgress) {
-        if (i % 10 === 0) console.log("[Flow/VID] Progresso detectado, aguardando...");
+        if (i % 10 === 0) console.log(`[${new Date().toISOString()}] [Flow/VID] Progresso detectado, aguardando...`);
         continue;
       }
 
       if (i > 20 && progress.hasFail) {
-        console.log("[Flow/VID] Geração falhou");
+        console.log(`[${new Date().toISOString()}] [Flow/VID] Geração falhou`);
         await page.screenshot({ path: path.join(__dirname, "../../debug_flowvid_fail.png") });
         break;
       }
 
-      if (i % 10 === 0) console.log(`[Flow/VID] Aguardando... ${i * 3}s`);
+      if (i % 10 === 0) console.log(`[${new Date().toISOString()}] [Flow/VID] Aguardando... ${i * 3}s`);
     }
 
     await page.close();
     return null;
   } catch (e: any) {
-    console.log("[Flow/VID] Erro:", e.message);
+    console.error(`[${new Date().toISOString()}] [Flow/VID] Erro: ${e.message}`);
     if (page) await page.close().catch(() => {});
     return null;
   }
+}
+
+export async function generateFlowVideo(prompt: string): Promise<Buffer | null> {
+  const result = await _generateFlowVideoOnce(prompt);
+  if (result) return result;
+
+  // Retry once after 5 seconds
+  console.log(`[${new Date().toISOString()}] [Flow/VID] Primeira tentativa falhou, retentando em 5s...`);
+  await new Promise(r => setTimeout(r, 5000));
+  const retryResult = await _generateFlowVideoOnce(prompt);
+  if (!retryResult) {
+    console.error(`[${new Date().toISOString()}] [Flow/VID] Segunda tentativa também falhou para: "${prompt.substring(0, 50)}"`);
+  }
+  return retryResult;
 }
 
 process.on("SIGTERM", () => {

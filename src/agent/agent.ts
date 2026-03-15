@@ -281,13 +281,13 @@ export async function processMessage(userId: string, userName: string, text: str
   }
 
   // ========== AGENTES RESEARCH, CRITIC, GENERAL ==========
-  const history = getHistory(userId, 20);
+  const history = await getHistory(userId, 20);
   const messages: ChatMessage[] = history.map(h => ({
     role: h.role as "user" | "assistant",
     content: h.content,
   }));
 
-  const pref = getUserPreference(userId);
+  const pref = await getUserPreference(userId);
   let promptTemplate: string;
   let agentEmoji: string;
 
@@ -348,7 +348,7 @@ async function aiDebate(topic: string, userId: string, userName: string): Promis
   const iaAmigo = shuffled[1]; // IA que é "ela mesma"
 
   // Pegar histórico do usuário pra IA clonar o estilo
-  const history = getHistory(userId, 30);
+  const history = await getHistory(userId, 30);
   const userMessages = history.filter(h => h.role === "user").map(h => h.content).join("\n");
 
   const clonePrompt = `Você é ${userName}, um cara brasileiro real. Você NÃO é uma IA.
