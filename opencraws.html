@@ -1740,13 +1740,25 @@ setTimeout(() => {
     overlay.style.display = 'none';
   }, 6800);
 
-  // Step 9: Greeting speech (7.0s)
+  // Step 9: Terminal boot log with 300ms delays (6.0s+)
+  const bootLogMessages = [
+    '[BOOT] Initializing neural core... OK',
+    '[BOOT] Loading personality matrix... OK',
+    '[BOOT] Connecting to Groq... OK'
+  ];
+  bootLogMessages.forEach((msg, i) => {
+    setTimeout(() => {
+      addLine(msg, 'system-msg');
+    }, 6000 + i * 300);
+  });
+
+  // Step 10: Greeting speech after boot log (7.0s)
   setTimeout(() => {
-    const greeting = 'E ai, chefe! Opencraws no ar e pronto pra acao! Manda o papo que eu resolvo no turbo!';
+    const greeting = 'E ai, chefe! Opencraws online e pronto pra acao!';
     addLineTyped('[CRAWS] ' + greeting, 'craws-msg', () => {
       speak(greeting);
     });
-  }, 7000);
+  }, 6000 + bootLogMessages.length * 300 + 400);
 })();
 
 </script>

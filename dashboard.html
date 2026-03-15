@@ -449,7 +449,21 @@ body::after {
   border-radius: 0 8px 8px 0;
   border-left: 2px solid transparent;
 }
+.activity-item { cursor: pointer; }
 .activity-item:last-child { border-bottom: none; }
+.activity-item .activity-full-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, margin-top 0.3s ease;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-top: 0;
+}
+.activity-item.expanded .activity-full-details {
+  max-height: 120px;
+  margin-top: 8px;
+}
 .activity-item:hover {
   background: rgba(0, 212, 255, 0.04);
   border-left-color: var(--accent);
@@ -834,6 +848,10 @@ body::after {
   </div>
   <div class="header-center" id="clock"></div>
   <div class="header-right">
+    <div id="apiConnectionStatus" style="display:flex;align-items:center;gap:6px;font-family:'Orbitron',sans-serif;font-size:0.6rem;letter-spacing:0.08em;color:var(--text-tertiary);margin-right:12px">
+      <span id="apiDot" style="width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);transition:all 0.5s ease"></span>
+      <span id="apiStatusText">API OFFLINE</span>
+    </div>
     <div class="user-badge">
       <div class="avatar">
         MJ
@@ -994,7 +1012,7 @@ body::after {
     <div class="card">
       <div class="card-title"><span class="dot"></span>Comandos R&aacute;pidos</div>
       <div class="cmd-grid">
-        <button class="cmd-btn" onclick="ripple(event)">Gerar Imagem</button>
+        <button class="cmd-btn" onclick="ripple(event); window.open('opencraws.html','_blank')">Gerar Imagem</button>
         <button class="cmd-btn" onclick="ripple(event)">Gerar V&iacute;deo</button>
         <button class="cmd-btn" onclick="ripple(event)">Postar Instagram</button>
         <button class="cmd-btn" onclick="ripple(event)">Juntar V&iacute;deos</button>
@@ -1362,9 +1380,78 @@ setInterval(() => {
   document.getElementById('hexVal3').textContent = randomHex();
 }, 3000);
 
+// ── Connection Status Indicator ──
+function updateApiStatusIndicator(online) {
+  const dot = document.getElementById('apiDot');
+  const text = document.getElementById('apiStatusText');
+  if (online) {
+    dot.style.background = '#00cc55';
+    dot.style.boxShadow = '0 0 6px rgba(0,204,85,0.6)';
+    text.textContent = 'API CONNECTED';
+    text.style.color = '#00cc55';
+  } else {
+    dot.style.background = 'var(--red)';
+    dot.style.boxShadow = '0 0 6px var(--red)';
+    text.textContent = 'API OFFLINE';
+    text.style.color = 'var(--red)';
+  }
+}
+
+// ── Last Updated Counter ──
+let lastUpdatedTime = Date.now();
+
+function createLastUpdatedEl() {
+  const el = document.createElement('div');
+  el.id = 'lastUpdated';
+  el.style.cssText = 'font-family:"JetBrains Mono",monospace;font-size:0.7rem;color:var(--text-tertiary);letter-spacing:0.05em;margin-right:8px';
+  el.textContent = 'Last Updated: 0s ago';
+  const headerRight = document.querySelector('.header-right');
+  headerRight.insertBefore(el, headerRight.firstChild);
+  return el;
+}
+const lastUpdatedEl = createLastUpdatedEl();
+
+setInterval(() => {
+  const seconds = Math.floor((Date.now() - lastUpdatedTime) / 1000);
+  lastUpdatedEl.textContent = 'Last Updated: ' + seconds + 's ago';
+}, 1000);
+
+// ── Activity Feed Click to Expand ──
+function makeActivityItemsClickable() {
+  document.querySelectorAll('.activity-item').forEach(item => {
+    if (item.dataset.clickable) return;
+    item.dataset.clickable = 'true';
+    item.addEventListener('click', () => {
+      item.classList.toggle('expanded');
+      // Create full details div if not exists
+      let details = item.querySelector('.activity-full-details');
+      if (!details) {
+        details = document.createElement('div');
+        details.className = 'activity-full-details';
+        const textEl = item.querySelector('.activity-text');
+        const timeEl = item.querySelector('.activity-time');
+        details.innerHTML = '<strong>Detalhes:</strong> ' + (textEl ? textEl.innerHTML : '') + '<br><em>Timestamp: ' + (timeEl ? timeEl.textContent : 'N/A') + '</em>';
+        const contentDiv = item.querySelector('div:not(.activity-icon)');
+        if (contentDiv) contentDiv.appendChild(details);
+      }
+    });
+  });
+}
+
+// Observe activity list for dynamic updates
+const activityObserver = new MutationObserver(() => { makeActivityItemsClickable(); });
+const activityListEl = document.querySelector('.activity-list');
+if (activityListEl) {
+  activityObserver.observe(activityListEl, { childList: true });
+  makeActivityItemsClickable();
+}
+
 // ── Initial Load + Auto-refresh ──
 async function loadDashboardData() {
   await Promise.all([fetchStats(), fetchActivity(), fetchAgents()]);
+  lastUpdatedTime = Date.now();
+  updateApiStatusIndicator(apiOnline);
+  makeActivityItemsClickable();
 }
 
 // Load on page start
