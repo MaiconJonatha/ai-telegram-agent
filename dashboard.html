@@ -856,7 +856,7 @@ body::after {
       <div class="card-title"><span class="dot"></span>Bot Status</div>
       <div class="stat-value online" data-count="ONLINE">ONLINE</div>
       <div class="stat-sub">Uptime <span>47d 13h</span></div>
-      <div class="stat-sub">Mensagens hoje <span data-countup="342">0</span></div>
+      <div class="stat-sub">Mensagens hoje <span data-stat="messagesToday" data-countup="342">0</span></div>
     </div>
 
     <!-- Google Flow Credits -->
@@ -879,8 +879,8 @@ body::after {
     <!-- Media Generated -->
     <div class="card">
       <div class="card-title"><span class="dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple)"></span>Media Generated</div>
-      <div class="stat-value" style="font-size:1.4rem"><span data-countup="1247">0</span> imagens</div>
-      <div class="stat-label" style="margin-top:2px"><span data-countup="384">0</span> v&iacute;deos</div>
+      <div class="stat-value" style="font-size:1.4rem"><span data-stat="imagesTotal" data-countup="1247">0</span> imagens</div>
+      <div class="stat-label" style="margin-top:2px"><span data-stat="videosTotal" data-countup="384">0</span> v&iacute;deos</div>
       <div class="sparkline-container">
         <svg class="sparkline" viewBox="0 0 200 40" preserveAspectRatio="none" id="sparkline">
           <polygon class="area" id="sparkArea"/>
@@ -1069,6 +1069,13 @@ body::after {
 </footer>
 
 <script>
+// ── API Configuration ──
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:10000'
+  : 'https://arcanjobot.onrender.com';
+
+let apiOnline = false;
+
 // ── Clock ──
 function updateClock() {
   const now = new Date();
@@ -1079,8 +1086,7 @@ updateClock();
 setInterval(updateClock, 1000);
 
 // ── Count-Up Animation ──
-document.querySelectorAll('[data-countup]').forEach(el => {
-  const target = parseInt(el.dataset.countup);
+function animateCountUp(el, target) {
   const duration = 1200;
   const start = performance.now();
   function step(ts) {
@@ -1091,7 +1097,181 @@ document.querySelectorAll('[data-countup]').forEach(el => {
     else el.textContent = target.toLocaleString('pt-BR');
   }
   requestAnimationFrame(step);
+}
+
+// Initial count-up for static elements
+document.querySelectorAll('[data-countup]').forEach(el => {
+  animateCountUp(el, parseInt(el.dataset.countup));
 });
+
+// ── Fetch Stats from API ──
+async function fetchStats() {
+  try {
+    const res = await fetch(API_BASE + '/api/stats');
+    if (!res.ok) throw new Error('API error');
+    const stats = await res.json();
+    apiOnline = true;
+
+    // Update bot status
+    const statusEl = document.querySelector('.stat-value[data-count="ONLINE"]');
+    if (statusEl) {
+      statusEl.textContent = 'ONLINE';
+      statusEl.classList.add('online');
+    }
+
+    // Update messages today
+    const msgTodayEl = document.querySelector('[data-stat="messagesToday"]');
+    if (msgTodayEl) animateCountUp(msgTodayEl, stats.messagesToday);
+
+    // Update images count
+    const imgEl = document.querySelector('[data-stat="imagesTotal"]');
+    if (imgEl) animateCountUp(imgEl, stats.imagesTotal);
+
+    // Update videos count
+    const vidEl = document.querySelector('[data-stat="videosTotal"]');
+    if (vidEl) animateCountUp(vidEl, stats.videosTotal);
+
+    return stats;
+  } catch (e) {
+    apiOnline = false;
+    const statusEl = document.querySelector('.stat-value[data-count="ONLINE"]');
+    if (statusEl) {
+      statusEl.textContent = 'OFFLINE';
+      statusEl.classList.remove('online');
+      statusEl.style.color = 'var(--red)';
+    }
+    return null;
+  }
+}
+
+// ── Fetch Activity from API ──
+async function fetchActivity() {
+  try {
+    const res = await fetch(API_BASE + '/api/activity');
+    if (!res.ok) throw new Error('API error');
+    const activity = await res.json();
+
+    const activityList = document.querySelector('.activity-list');
+    if (!activityList || activity.length === 0) return;
+
+    activityList.innerHTML = '';
+
+    activity.forEach(item => {
+      const icon = item.source === 'media'
+        ? (item.type === 'image' ? '&#127912;' : item.type === 'video' ? '&#127916;' : '&#128172;')
+        : '&#9889;';
+
+      const desc = item.source === 'media'
+        ? `<strong>${item.type === 'image' ? 'Imagem gerada' : item.type === 'video' ? 'V\u00eddeo criado' : item.type}:</strong> ${item.description || 'sem descri\u00e7\u00e3o'}`
+        : `<strong>Agente ${item.type}:</strong> ${item.description || 'a\u00e7\u00e3o executada'}`;
+
+      const timeAgo = item.created_at ? formatTimeAgo(new Date(item.created_at)) : '';
+
+      const li = document.createElement('li');
+      li.className = 'activity-item';
+      li.innerHTML = `
+        <div class="activity-icon">${icon}</div>
+        <div>
+          <div class="activity-text">${desc}${item.provider ? ' <em style="color:var(--text-tertiary)">via ' + item.provider + '</em>' : ''}</div>
+          <div class="activity-time">${timeAgo}</div>
+        </div>
+      `;
+      activityList.appendChild(li);
+    });
+  } catch (e) {
+    // Keep existing static content on error
+  }
+}
+
+function formatTimeAgo(date) {
+  const now = new Date();
+  const diff = Math.floor((now - date) / 1000);
+  if (diff < 60) return 'agora';
+  if (diff < 3600) return Math.floor(diff / 60) + ' min atr\u00e1s';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h atr\u00e1s';
+  return Math.floor(diff / 86400) + 'd atr\u00e1s';
+}
+
+// ── Fetch Agent Stats from API ──
+async function fetchAgents() {
+  try {
+    const res = await fetch(API_BASE + '/api/agents');
+    if (!res.ok) throw new Error('API error');
+    const agentData = await res.json();
+
+    // Merge API data with default agent definitions
+    const defaultAgents = [
+      { icon: '\u{1F916}', name: 'Agent Orquestrador', key: 'orchestrator', status: 'active', pct: 92 },
+      { icon: '\u{1F3A8}', name: 'Agent Imagem', key: 'image', status: 'active', pct: 78 },
+      { icon: '\u{1F3AC}', name: 'Agent V\u00eddeo', key: 'video', status: 'active', pct: 65 },
+      { icon: '\u{1F4F1}', name: 'Agent Instagram', key: 'instagram', status: 'active', pct: 45 },
+      { icon: '\u26A1', name: 'Agent Groq', key: 'groq', status: 'standby', pct: 30 },
+      { icon: '\u{1F50D}', name: 'Agent Pesquisa', key: 'search', status: 'standby', pct: 15 },
+      { icon: '\u{1F4BE}', name: 'Agent Storage', key: 'storage', status: 'offline', pct: 0 },
+    ];
+
+    // Update agents with real data if available
+    if (agentData.length > 0) {
+      const maxTotal = Math.max(...agentData.map(a => parseInt(a.total)), 1);
+      defaultAgents.forEach(agent => {
+        const match = agentData.find(a => a.name.toLowerCase().includes(agent.key));
+        if (match) {
+          agent.pct = Math.round((parseInt(match.total) / maxTotal) * 100);
+          agent.status = 'active';
+          agent.detail = `${match.total} execu\u00e7\u00f5es totais. \u00daltimo uso: ${match.last_used ? formatTimeAgo(new Date(match.last_used)) : 'N/A'}`;
+        }
+      });
+    }
+
+    renderAgents(defaultAgents);
+  } catch (e) {
+    // Fallback to default agents
+    renderAgents([
+      { icon: '\u{1F916}', name: 'Agent Orquestrador', status: 'active', pct: 92, detail: 'Coordena todos os sub-agentes.' },
+      { icon: '\u{1F3A8}', name: 'Agent Imagem', status: 'active', pct: 78, detail: 'Gemini + Flux.' },
+      { icon: '\u{1F3AC}', name: 'Agent V\u00eddeo', status: 'active', pct: 65, detail: 'Veo 3.1 + FFmpeg.' },
+      { icon: '\u{1F4F1}', name: 'Agent Instagram', status: 'active', pct: 45, detail: 'Publica automaticamente.' },
+      { icon: '\u26A1', name: 'Agent Groq', status: 'standby', pct: 30, detail: 'LLaMA 3.3 70B.' },
+      { icon: '\u{1F50D}', name: 'Agent Pesquisa', status: 'standby', pct: 15, detail: 'Brave Search.' },
+      { icon: '\u{1F4BE}', name: 'Agent Storage', status: 'offline', pct: 0, detail: 'Gerencia arquivos.' },
+    ]);
+  }
+}
+
+function renderAgents(agents) {
+  const list = document.getElementById('agentList');
+  list.innerHTML = '';
+  agents.forEach((a, i) => {
+    const cls = a.status === 'active' ? 'badge-active' : a.status === 'standby' ? 'badge-standby' : 'badge-offline';
+    const label = a.status === 'active' ? 'ATIVO' : a.status === 'standby' ? 'STANDBY' : 'OFFLINE';
+    const color = a.status === 'active' ? 'var(--accent)' : a.status === 'standby' ? 'var(--orange)' : 'var(--red)';
+
+    const item = document.createElement('div');
+    item.className = 'agent-item';
+    item.innerHTML = `
+      <div class="agent-icon">${a.icon}</div>
+      <div class="agent-info">
+        <div class="agent-name">${a.name}</div>
+        <div class="agent-bar"><div class="agent-bar-fill" style="width:0;background:${color}"></div></div>
+      </div>
+      <span class="badge ${cls}">${label}</span>
+    `;
+    const detail = document.createElement('div');
+    detail.className = 'agent-detail';
+    detail.textContent = a.detail || '';
+
+    item.addEventListener('click', () => {
+      item.classList.toggle('expanded');
+    });
+
+    list.appendChild(item);
+    list.appendChild(detail);
+
+    setTimeout(() => {
+      item.querySelector('.agent-bar-fill').style.width = a.pct + '%';
+    }, 400 + i * 100);
+  });
+}
 
 // ── Progress Ring ──
 setTimeout(() => {
@@ -1119,49 +1299,6 @@ setTimeout(() => {
   line.style.transition = 'stroke-dashoffset 1.5s ease';
   setTimeout(() => line.style.strokeDashoffset = 0, 300);
 })();
-
-// ── Agents ──
-const agents = [
-  { icon: '\u{1F916}', name: 'Agent Orquestrador', status: 'active', pct: 92, detail: 'Coordena todos os sub-agentes. Uptime: 47d.' },
-  { icon: '\u{1F3A8}', name: 'Agent Imagem', status: 'active', pct: 78, detail: 'Gemini + Flux. 1,247 gera\u00e7\u00f5es totais.' },
-  { icon: '\u{1F3AC}', name: 'Agent V\u00eddeo', status: 'active', pct: 65, detail: 'Veo 3.1 + FFmpeg. 384 v\u00eddeos criados.' },
-  { icon: '\u{1F4F1}', name: 'Agent Instagram', status: 'active', pct: 45, detail: 'Publica automaticamente via Instagrapi.' },
-  { icon: '\u26A1', name: 'Agent Groq', status: 'standby', pct: 30, detail: 'LLaMA 3.3 70B para processamento r\u00e1pido.' },
-  { icon: '\u{1F50D}', name: 'Agent Pesquisa', status: 'standby', pct: 15, detail: 'Brave Search + scraping web.' },
-  { icon: '\u{1F4BE}', name: 'Agent Storage', status: 'offline', pct: 0, detail: 'Gerencia arquivos e cache local.' },
-];
-
-const list = document.getElementById('agentList');
-agents.forEach((a, i) => {
-  const cls = a.status === 'active' ? 'badge-active' : a.status === 'standby' ? 'badge-standby' : 'badge-offline';
-  const label = a.status === 'active' ? 'ATIVO' : a.status === 'standby' ? 'STANDBY' : 'OFFLINE';
-  const color = a.status === 'active' ? 'var(--accent)' : a.status === 'standby' ? 'var(--orange)' : 'var(--red)';
-
-  const item = document.createElement('div');
-  item.className = 'agent-item';
-  item.innerHTML = `
-    <div class="agent-icon">${a.icon}</div>
-    <div class="agent-info">
-      <div class="agent-name">${a.name}</div>
-      <div class="agent-bar"><div class="agent-bar-fill" style="width:0;background:${color}"></div></div>
-    </div>
-    <span class="badge ${cls}">${label}</span>
-  `;
-  const detail = document.createElement('div');
-  detail.className = 'agent-detail';
-  detail.textContent = a.detail;
-
-  item.addEventListener('click', () => {
-    item.classList.toggle('expanded');
-  });
-
-  list.appendChild(item);
-  list.appendChild(detail);
-
-  setTimeout(() => {
-    item.querySelector('.agent-bar-fill').style.width = a.pct + '%';
-  }, 400 + i * 100);
-});
 
 // ── CPU Chart (animated) ──
 const cpuData = [];
@@ -1224,6 +1361,17 @@ setInterval(() => {
   document.getElementById('hexVal2').textContent = randomHex();
   document.getElementById('hexVal3').textContent = randomHex();
 }, 3000);
+
+// ── Initial Load + Auto-refresh ──
+async function loadDashboardData() {
+  await Promise.all([fetchStats(), fetchActivity(), fetchAgents()]);
+}
+
+// Load on page start
+loadDashboardData();
+
+// Auto-refresh every 30 seconds
+setInterval(loadDashboardData, 30000);
 </script>
 </body>
 </html>

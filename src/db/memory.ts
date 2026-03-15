@@ -108,3 +108,61 @@ export function logAgent(userId: string, agent: string, action: string, status: 
     [userId, agent, action, status]
   ).catch(e => console.log("[DB] Erro ao logar agente:", e.message));
 }
+
+// ── API Query Functions ──
+
+export async function getStats(): Promise<{
+  messagesTotal: number;
+  messagesToday: number;
+  imagesTotal: number;
+  videosTotal: number;
+}> {
+  const client = await pool.connect();
+  try {
+    const msgs = await client.query("SELECT COUNT(*) as total FROM conversations");
+    const msgsToday = await client.query("SELECT COUNT(*) as total FROM conversations WHERE timestamp > CURRENT_DATE");
+    const images = await client.query("SELECT COUNT(*) as total FROM media_log WHERE type = 'image'");
+    const videos = await client.query("SELECT COUNT(*) as total FROM media_log WHERE type = 'video'");
+    return {
+      messagesTotal: parseInt(msgs.rows[0].total),
+      messagesToday: parseInt(msgsToday.rows[0].total),
+      imagesTotal: parseInt(images.rows[0].total),
+      videosTotal: parseInt(videos.rows[0].total),
+    };
+  } finally {
+    client.release();
+  }
+}
+
+export async function getRecentActivity(limit: number = 10): Promise<any[]> {
+  const res = await pool.query(`
+    (SELECT 'media' as source, type, prompt as description, provider, created_at FROM media_log ORDER BY created_at DESC LIMIT $1)
+    UNION ALL
+    (SELECT 'agent' as source, agent as type, action as description, status as provider, created_at FROM agent_log ORDER BY created_at DESC LIMIT $1)
+    ORDER BY created_at DESC LIMIT $1
+  `, [limit]);
+  return res.rows;
+}
+
+export async function getAgentStats(): Promise<any[]> {
+  const res = await pool.query(`
+    SELECT agent as name, COUNT(*) as total,
+      COUNT(*) FILTER (WHERE status = 'success') as success_count,
+      MAX(created_at) as last_used
+    FROM agent_log
+    GROUP BY agent
+    ORDER BY total DESC
+  `);
+  return res.rows;
+}
+
+export async function getConversationCounts(): Promise<any[]> {
+  const res = await pool.query(`
+    SELECT user_id, COUNT(*) as message_count
+    FROM conversations
+    GROUP BY user_id
+    ORDER BY message_count DESC
+    LIMIT 20
+  `);
+  return res.rows;
+}
