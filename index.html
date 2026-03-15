@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPENCRAWS // Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;background:#0a0a0f;color:#fff;font-family:'Share Tech Mono',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
+h1{font-family:'Orbitron',sans-serif;font-size:28px;letter-spacing:8px;color:#ff4444;text-shadow:0 0 30px rgba(255,68,68,0.3);margin-bottom:8px}
+.sub{font-size:11px;letter-spacing:5px;color:#666;margin-bottom:60px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1200px;width:100%}
+.card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:30px;cursor:pointer;transition:all 0.3s ease;position:relative;overflow:hidden;text-decoration:none;color:#fff}
+.card:hover{border-color:rgba(0,229,204,0.3);transform:translateY(-4px);box-shadow:0 8px 30px rgba(0,229,204,0.1)}
+.card::before{content:'';position:absolute;top:0;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity 0.3s}
+.card:hover::before{opacity:1}
+.card .icon{font-size:48px;margin-bottom:16px;display:block}
+.card .name{font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:3px;margin-bottom:8px}
+.card .desc{font-size:11px;color:#666;line-height:1.6}
+.card:nth-child(1){--accent:#fff}
+.card:nth-child(2){--accent:#ff4444}
+.card:nth-child(3){--accent:#00e5cc}
+.card:nth-child(4){--accent:#ff6b35}
+.footer{margin-top:60px;font-size:9px;letter-spacing:3px;color:#333}
+.footer a{color:#555;text-decoration:none}
+.scan{position:fixed;top:-2px;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,68,68,0.15),transparent);pointer-events:none;animation:scan 8s linear infinite;z-index:99}
+@keyframes scan{0%{top:-2px}100%{top:100%}}
+</style>
+</head>
+<body>
+<div class="scan"></div>
+<h1>OPENCRAWS</h1>
+<div class="sub">NEURAL ASSISTANT ECOSYSTEM</div>
+<div class="grid">
+  <a class="card" href="jarvis.html">
+    <span class="icon">🤖</span>
+    <div class="name">WHITE VISION</div>
+    <div class="desc">Interface neural do Visão Branco. Lip sync em tempo real, emoções, sistema multi-agente. Fale com ele pelo microfone.</div>
+  </a>
+  <a class="card" href="opencraws.html">
+    <span class="icon">🦞</span>
+    <div class="name">OPENCRAWS 2D</div>
+    <div class="desc">Robô crustáceo SVG com lip sync humanizado. Garras, antenas, boca orgânica. "E aí, chefe!"</div>
+  </a>
+  <a class="card" href="preview3d.html">
+    <span class="icon">🎮</span>
+    <div class="name">OPENCRAWS 3D</div>
+    <div class="desc">Modelo 3D Blender com Three.js. Bloom nos olhos, lip sync 3D, auto-rotate. Feito no Blender 5.0.</div>
+  </a>
+  <a class="card" href="dashboard.html">
+    <span class="icon">📊</span>
+    <div class="name">STARK DASHBOARD</div>
+    <div class="desc">Control Center estilo Homem de Ferro. Stats ao vivo do PostgreSQL, agentes, atividade recente.</div>
+  </a>
+</div>
+<div class="footer">POWERED BY ARC REACTOR TECHNOLOGY // <a href="https://t.me/Opencraws_bot">@Opencraws_bot</a> // © 2026 Maicon Jonatha</div>
+</body>
+</html>
