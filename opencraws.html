@@ -308,8 +308,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;color:#fff;f
   <g id="mouthGroup" style="transform-origin: 100px 135px">
     <g id="chinGroup" style="transition: transform 0.25s ease"></g>
     <path id="upperLip" d="M 0 0" fill="none" stroke="none" stroke-width="0" opacity="0"/>
-    <ellipse id="mouth" cx="100" cy="135" rx="8" ry="0"
-      fill="rgba(80,20,20,0.7)" stroke="rgba(60,10,10,0.5)" stroke-width="0.8"
+    <ellipse id="mouth" cx="100" cy="138" rx="6" ry="2.5"
+      fill="rgba(80,20,20,0.8)" stroke="rgba(60,10,10,0.6)" stroke-width="0.8"
       style="transition: rx 0.15s ease, ry 0.15s ease, cy 0.15s ease"/>
     <path id="lowerLip" d="M 0 0" fill="none" stroke="none" stroke-width="0" opacity="0"/>
   </g>
@@ -543,7 +543,7 @@ function startMouthAnimation() {
   let t = 0;
   function animateMouth() {
     if (!isSpeaking) {
-      mouth.setAttribute('ry', '0');
+      mouth.setAttribute('ry', '2.5');
       mouth.setAttribute('rx', '8');
       mouth.setAttribute('fill', 'rgba(80,20,20,0.7)');
       return;
@@ -567,7 +567,7 @@ function stopMouthAnimation() {
   if (mouthAnimFrame) cancelAnimationFrame(mouthAnimFrame);
   lerpMouthRY = 0;
   lerpMouthRX = 8;
-  mouth.setAttribute('ry', '0');
+  mouth.setAttribute('ry', '2.5');
   mouth.setAttribute('rx', '8');
   mouth.setAttribute('fill', 'rgba(80,20,20,0.7)');
 }
@@ -975,7 +975,7 @@ function startListeningMicroExpressions() {
     if (Math.random() < 0.02) {
       mouth.setAttribute('ry', '1.5');
       setTimeout(() => {
-        if (microExprActive) mouth.setAttribute('ry', '0');
+        if (microExprActive) mouth.setAttribute('ry', '2.5');
       }, 200);
     }
 
@@ -1027,7 +1027,7 @@ function setEmotion(emotion) {
       highlightL.setAttribute('r', '2.5');
       highlightR.setAttribute('r', '2.5');
       // No mouth
-      mouth.setAttribute('ry', '0');
+      mouth.setAttribute('ry', '2.5');
       mouth.setAttribute('rx', '8');
       // Antennae idle
       setAntennaState('idle');
@@ -1047,7 +1047,7 @@ function setEmotion(emotion) {
       blushR.style.opacity = '1';
       sparkles.style.opacity = '1';
       // No mouth (happy just via eyes)
-      mouth.setAttribute('ry', '0');
+      mouth.setAttribute('ry', '2.5');
       // Antenna wiggle
       setAntennaState('excited');
       break;
@@ -1069,7 +1069,7 @@ function setEmotion(emotion) {
       // Show thinking dots
       thinkingDots.style.opacity = '1';
       // No mouth
-      mouth.setAttribute('ry', '0');
+      mouth.setAttribute('ry', '2.5');
       // Drooping antennae
       setAntennaState('drooping');
       break;
@@ -1107,7 +1107,7 @@ function setEmotion(emotion) {
       highlightL.setAttribute('cy', '105');
       highlightR.setAttribute('cy', '105');
       // No mouth
-      mouth.setAttribute('ry', '0');
+      mouth.setAttribute('ry', '2.5');
       // Perked antennae
       setAntennaState('perked');
       // Start listening micro-expressions
@@ -1729,7 +1729,7 @@ setTimeout(() => {
       mouth.setAttribute('ry', Math.max(0, ry));
       if (testT > Math.PI) {
         clearInterval(testInterval);
-        mouth.setAttribute('ry', '0');
+        mouth.setAttribute('ry', '2.5');
       }
     }, 50);
   }, 4200);
