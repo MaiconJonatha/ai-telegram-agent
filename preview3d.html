@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPENCRAWS // 3D NEURAL INTERFACE</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;color:#fff;font-family:'Share Tech Mono',monospace}
+
+/* Title */
+.title{position:fixed;top:25px;left:50%;transform:translateX(-50%);text-align:center;z-index:20;pointer-events:none}
+.title h1{font-family:'Orbitron',sans-serif;font-weight:500;font-size:16px;letter-spacing:6px;color:#ff4444;text-shadow:0 0 20px rgba(255,68,68,0.3)}
+.title .sub{font-size:9px;letter-spacing:5px;color:#ff6b35;margin-top:5px;opacity:0.8}
+
+/* Status panel */
+.status-panel{position:fixed;bottom:75px;left:20px;z-index:25;display:flex;flex-direction:column;gap:5px;font-size:9px;letter-spacing:2px;color:#666}
+.status-panel .status-row{display:flex;align-items:center;gap:6px}
+.status-panel .dot{width:5px;height:5px;border-radius:50%}
+.dot-online{background:#00e5cc;box-shadow:0 0 6px rgba(0,229,204,0.5);animation:dotPulse 2s ease-in-out infinite}
+.dot-cyan{background:#00e5cc;box-shadow:0 0 6px rgba(0,229,204,0.4);animation:dotPulse 3s ease-in-out infinite}
+@keyframes dotPulse{0%,100%{opacity:0.5}50%{opacity:1}}
+
+/* Mic button */
+.mic-indicator{position:fixed;bottom:75px;right:20px;z-index:25;display:flex;align-items:center;gap:8px;font-size:10px;letter-spacing:2px;color:#555}
+.mic-icon{width:32px;height:32px;border-radius:50%;border:1px solid rgba(0,229,204,0.3);display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(13,17,23,0.8);transition:all 0.3s ease}
+.mic-icon svg{width:16px;height:16px;fill:rgba(0,229,204,0.4)}
+.mic-icon.active{border-color:#00e5cc;box-shadow:0 0 12px rgba(0,229,204,0.3);animation:micPulse 2s ease-in-out infinite}
+.mic-icon.active svg{fill:#00e5cc}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,229,204,0.2)}50%{box-shadow:0 0 0 10px rgba(0,229,204,0)}}
+
+/* Terminal */
+.terminal{position:fixed;bottom:0;left:0;width:100%;z-index:20;border-top:1px solid #1a2030;background:linear-gradient(180deg,rgba(13,17,23,0.92),rgba(13,17,23,0.98));padding:10px 25px}
+.terminal::before{content:'';position:absolute;top:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,107,53,0.5),rgba(0,229,204,0.4),rgba(255,107,53,0.5),transparent);animation:termBorder 3s ease-in-out infinite}
+@keyframes termBorder{0%,100%{opacity:0.3}50%{opacity:1}}
+.terminal-output{max-height:100px;overflow-y:auto;margin-bottom:5px;scrollbar-width:none}
+.terminal-output::-webkit-scrollbar{display:none}
+.terminal-output .line{font-size:11px;color:#666;line-height:1.5;letter-spacing:1px}
+.terminal-output .line.user-msg{color:#00e5cc}
+.terminal-output .line.craws-msg{color:#ff6b35}
+.terminal-output .line.system-msg{color:#555;font-style:italic}
+.terminal-input{display:flex;align-items:center;gap:8px}
+.terminal-input .prompt{font-size:11px;color:#ff4444;letter-spacing:2px;white-space:nowrap}
+.terminal-input input{background:none;border:none;outline:none;color:#ccc;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;flex:1;caret-color:#ff4444}
+
+/* Live transcript */
+.live-transcript{position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:20;font-size:13px;letter-spacing:1px;color:rgba(0,229,204,0.5);text-align:center;max-width:70%;pointer-events:none;opacity:0;transition:opacity 0.3s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.live-transcript.visible{opacity:1}
+
+/* Scan line */
+.scan-line{position:fixed;top:-2px;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,68,68,0.1),rgba(255,68,68,0.2),rgba(255,68,68,0.1),transparent);z-index:90;pointer-events:none;animation:scanDown 8s linear infinite}
+@keyframes scanDown{0%{top:-2px}100%{top:100%}}
+
+/* Responsive */
+@media(max-width:768px){
+  .title h1{font-size:11px;letter-spacing:3px}
+  .status-panel{bottom:65px;left:10px;font-size:8px}
+  .mic-indicator{bottom:65px;right:10px}
+  .terminal{padding:8px 12px}
+}
+</style>
+</head>
+<body>
+
+<!-- Scan line -->
+<div class="scan-line"></div>
+
+<!-- Title -->
+<div class="title">
+  <h1>OPENCRAWS // 3D NEURAL INTERFACE</h1>
+  <div class="sub">CRUSTACEAN MECHA INTELLIGENCE SYSTEM</div>
+</div>
+
+<!-- Status panel -->
+<div class="status-panel" id="statusPanel">
+  <div class="status-row"><span class="dot dot-online"></span> TELEGRAM: ONLINE</div>
+  <div class="status-row"><span class="dot dot-cyan"></span> BRAIN: GROQ LLAMA 3.3</div>
+  <div class="status-row"><span class="dot dot-cyan"></span> MODE: 3D INTERFACE</div>
+</div>
+
+<!-- Mic indicator -->
+<div class="mic-indicator" id="micIndicator">
+  <div class="mic-icon" id="micIcon" title="Clique para ativar/desativar microfone">
+    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+  </div>
+  <span class="mic-status" id="micStatus">MIC OFF</span>
+</div>
+
+<!-- Live Transcript -->
+<div class="live-transcript" id="liveTranscript">
+  <span id="liveTranscriptText"></span>
+</div>
+
+<!-- Terminal -->
+<div class="terminal" id="terminalBlock">
+  <div class="terminal-output" id="termOutput"></div>
+  <div class="terminal-input">
+    <span class="prompt">CRAWS &gt;</span>
+    <input type="text" id="termInput" autocomplete="off" spellcheck="false" autofocus placeholder="Digite ou fale, capitao...">
+  </div>
+</div>
+
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.170.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.170.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// ==============================================================
+// GROQ API CONFIGURATION
+// ==============================================================
+const GROQ_API_KEY = new URLSearchParams(window.location.search).get('key') || localStorage.getItem('groq_key') || prompt('Digite sua Groq API Key:') || '';
+if (GROQ_API_KEY && !localStorage.getItem('groq_key')) localStorage.setItem('groq_key', GROQ_API_KEY);
+const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+
+const CRAWS_SYSTEM_PROMPT = `Voce e o Opencraws, um robo assistente crustaceo futurista. Voce e energico, divertido e eficiente. Voce adora ajudar pessoas com tecnologia. Voce faz piadas nerds de vez em quando. Voce se refere ao usuario como "chefe" ou "capitao". Suas respostas sao curtas e diretas (1-2 frases). Voce fala em portugues brasileiro com girias tech.`;
+
+const conversationHistory = [];
+const MAX_HISTORY = 10;
+
+// ==============================================================
+// STATE
+// ==============================================================
+let crawsState = 'idle';
+let isSpeaking = false;
+let isProcessingCommand = false;
+let micEnabled = false;
+let recognition = null;
+
+// 3D model references
+let mouthMesh = null;
+let eyeL = null;
+let eyeR = null;
+let headMesh = null;
+let model = null;
+let allEmissiveMeshes = [];
+
+// Mouse tracking
+let mouseX = 0, mouseY = 0;
+let lastInteraction = Date.now();
+
+// Audio
+let audioCtx = null;
+let analyser = null;
+let micStream = null;
+let micSource = null;
+let realtimeActive = false;
+let lerpVolume = 0;
+
+// ==============================================================
+// THREE.JS SETUP
+// ==============================================================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d1117);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 1, 5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+// Post-processing bloom for glowing eyes
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
+
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(innerWidth, innerHeight),
+  0.8,   // bloom strength
+  0.4,   // bloom radius
+  0.85   // bloom threshold
+);
+composer.addPass(bloomPass);
+
+// Controls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.05;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 1.5;
+controls.minDistance = 2;
+controls.maxDistance = 10;
+
+// Track user interaction for auto-rotate pause
+let autoRotateTimeout = null;
+function onUserInteract() {
+  lastInteraction = Date.now();
+  controls.autoRotate = false;
+  if (autoRotateTimeout) clearTimeout(autoRotateTimeout);
+  autoRotateTimeout = setTimeout(() => {
+    controls.autoRotate = true;
+  }, 5000);
+}
+renderer.domElement.addEventListener('pointerdown', onUserInteract);
+renderer.domElement.addEventListener('wheel', onUserInteract);
+
+// ==============================================================
+// LIGHTING
+// ==============================================================
+// Hemisphere light (sky/ground)
+const hemiLight = new THREE.HemisphereLight(0x1a1a2e, 0x0d0d17, 0.8);
+scene.add(hemiLight);
+
+// Key light (stronger)
+const keyLight = new THREE.DirectionalLight(0xffffff, 3);
+keyLight.position.set(2, 3, 4);
+keyLight.castShadow = false;
+scene.add(keyLight);
+
+// Ambient fill
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+scene.add(ambientLight);
+
+// Teal point light for eyes area
+const tealLight = new THREE.PointLight(0x00e5cc, 2, 8);
+tealLight.position.set(0, 0.5, 1.5);
+scene.add(tealLight);
+
+// Red rim light from behind
+const rimLight = new THREE.PointLight(0xff4444, 1.5, 10);
+rimLight.position.set(0, 1, -3);
+scene.add(rimLight);
+
+// Additional fill lights
+const fillLeft = new THREE.PointLight(0x00d4ff, 0.8, 10);
+fillLeft.position.set(-3, 1, 2);
+scene.add(fillLeft);
+
+const fillRight = new THREE.PointLight(0xff6b35, 0.5, 10);
+fillRight.position.set(3, 0, 1);
+scene.add(fillRight);
+
+// ==============================================================
+// GRID FLOOR
+// ==============================================================
+const gridHelper = new THREE.GridHelper(12, 24, 0x00e5cc, 0x111a1a);
+gridHelper.position.y = -2;
+gridHelper.material.opacity = 0.3;
+gridHelper.material.transparent = true;
+scene.add(gridHelper);
+
+// ==============================================================
+// FLOATING PARTICLES
+// ==============================================================
+const particleCount = 80;
+const particleGeometry = new THREE.BufferGeometry();
+const particlePositions = new Float32Array(particleCount * 3);
+const particleSpeeds = [];
+
+for (let i = 0; i < particleCount; i++) {
+  particlePositions[i * 3] = (Math.random() - 0.5) * 10;
+  particlePositions[i * 3 + 1] = (Math.random() - 0.5) * 6;
+  particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 10;
+  particleSpeeds.push({
+    x: (Math.random() - 0.5) * 0.003,
+    y: (Math.random() - 0.5) * 0.002,
+    z: (Math.random() - 0.5) * 0.003
+  });
+}
+
+particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+const particleMaterial = new THREE.PointsMaterial({
+  color: 0x00e5cc,
+  size: 0.04,
+  transparent: true,
+  opacity: 0.5,
+  sizeAttenuation: true
+});
+
+const particles = new THREE.Points(particleGeometry, particleMaterial);
+scene.add(particles);
+
+function updateParticles() {
+  const positions = particleGeometry.attributes.position.array;
+  for (let i = 0; i < particleCount; i++) {
+    positions[i * 3] += particleSpeeds[i].x;
+    positions[i * 3 + 1] += particleSpeeds[i].y;
+    positions[i * 3 + 2] += particleSpeeds[i].z;
+
+    // Wrap around
+    if (Math.abs(positions[i * 3]) > 5) particleSpeeds[i].x *= -1;
+    if (Math.abs(positions[i * 3 + 1]) > 3) particleSpeeds[i].y *= -1;
+    if (Math.abs(positions[i * 3 + 2]) > 5) particleSpeeds[i].z *= -1;
+  }
+  particleGeometry.attributes.position.needsUpdate = true;
+}
+
+// ==============================================================
+// LOAD GLB MODEL
+// ==============================================================
+new GLTFLoader().load('opencraws_robot.glb', (gltf) => {
+  model = gltf.scene;
+
+  // Traverse and find named meshes
+  gltf.scene.traverse((child) => {
+    if (child.name === 'MouthArea') mouthMesh = child;
+    if (child.name === 'Eye_L') eyeL = child;
+    if (child.name === 'Eye_R') eyeR = child;
+    if (child.name === 'Head') headMesh = child;
+
+    // Collect all meshes with emissive materials for volume reactivity
+    if (child.isMesh && child.material) {
+      const mat = child.material;
+      if (mat.emissive && (mat.emissiveIntensity || 0) > 0) {
+        allEmissiveMeshes.push({
+          mesh: child,
+          baseIntensity: mat.emissiveIntensity || 1
+        });
+      }
+    }
+  });
+
+  scene.add(model);
+
+  // Center model
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  model.position.sub(center);
+
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z);
+  camera.position.set(0, 0.3, maxDim * 2.2);
+  controls.target.set(0, 0, 0);
+  controls.update();
+
+  addLine('[SISTEMA] Modelo 3D carregado com sucesso.', 'system-msg');
+  addLine('[SISTEMA] Meshes encontrados: Head=' + !!headMesh + ' Eyes=' + !!(eyeL && eyeR) + ' Mouth=' + !!mouthMesh, 'system-msg');
+
+  // Greeting speech after model loads
+  setTimeout(() => {
+    const greeting = 'Modelo 3D carregado, chefe! Pode falar comigo!';
+    addLineTyped('[CRAWS] ' + greeting, 'craws-msg', () => {
+      speak(greeting);
+    });
+  }, 800);
+
+}, (progress) => {
+  // Loading progress
+}, (err) => {
+  console.error('Error loading GLB:', err);
+  addLine('[ERRO] Falha ao carregar modelo 3D: ' + err.message, 'system-msg');
+});
+
+// ==============================================================
+// MOUSE TRACKING
+// ==============================================================
+document.addEventListener('mousemove', (ev) => {
+  mouseX = (ev.clientX / innerWidth) * 2 - 1;
+  mouseY = -(ev.clientY / innerHeight) * 2 + 1;
+});
+
+// ==============================================================
+// ANIMATION LOOP
+// ==============================================================
+const clock = new THREE.Clock();
+let speakingTime = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const delta = clock.getDelta();
+  const elapsed = clock.getElapsedTime();
+
+  // Update controls
+  controls.update();
+
+  // Update particles
+  updateParticles();
+
+  // Head follows mouse (subtle)
+  if (headMesh && crawsState !== 'speaking') {
+    headMesh.rotation.y = THREE.MathUtils.lerp(headMesh.rotation.y, mouseX * 0.15, 0.05);
+    headMesh.rotation.x = THREE.MathUtils.lerp(headMesh.rotation.x, mouseY * 0.08, 0.05);
+  }
+
+  // Eyes look toward mouse (if separate meshes)
+  if (eyeL && eyeR) {
+    const eyeTargetX = mouseX * 0.1;
+    const eyeTargetY = mouseY * 0.06;
+    eyeL.rotation.y = THREE.MathUtils.lerp(eyeL.rotation.y, eyeTargetX, 0.08);
+    eyeL.rotation.x = THREE.MathUtils.lerp(eyeL.rotation.x, eyeTargetY, 0.08);
+    eyeR.rotation.y = THREE.MathUtils.lerp(eyeR.rotation.y, eyeTargetX, 0.08);
+    eyeR.rotation.x = THREE.MathUtils.lerp(eyeR.rotation.x, eyeTargetY, 0.08);
+  }
+
+  // Speaking animations
+  if (isSpeaking) {
+    speakingTime += delta * 8;
+
+    // Mouth lip sync from volume or sine wave fallback
+    if (mouthMesh) {
+      const volume = lerpVolume > 0.01 ? lerpVolume : (Math.abs(Math.sin(speakingTime * 2.5)) * 0.5 + Math.abs(Math.sin(speakingTime * 3.7)) * 0.3);
+      mouthMesh.scale.y = 1 + volume * 2;
+      mouthMesh.scale.x = 1 + volume * 0.3;
+    }
+
+    // Eyes glow brighter when speaking
+    if (eyeL && eyeL.material) {
+      const pulse = 1 + Math.abs(Math.sin(speakingTime * 2)) * 2;
+      eyeL.material.emissiveIntensity = pulse;
+    }
+    if (eyeR && eyeR.material) {
+      const pulse = 1 + Math.abs(Math.sin(speakingTime * 2 + 0.3)) * 2;
+      eyeR.material.emissiveIntensity = pulse;
+    }
+
+    // Head subtle rotation based on audio
+    if (headMesh) {
+      headMesh.rotation.y = Math.sin(speakingTime * 1.3) * 0.05;
+      headMesh.rotation.z = Math.sin(speakingTime * 0.7) * 0.02;
+    }
+  } else {
+    // Reset mouth when not speaking
+    if (mouthMesh) {
+      mouthMesh.scale.y = THREE.MathUtils.lerp(mouthMesh.scale.y, 1, 0.1);
+      mouthMesh.scale.x = THREE.MathUtils.lerp(mouthMesh.scale.x, 1, 0.1);
+    }
+
+    // Idle eye glow pulse
+    if (eyeL && eyeL.material) {
+      eyeL.material.emissiveIntensity = 1 + Math.sin(elapsed * 2) * 0.3;
+    }
+    if (eyeR && eyeR.material) {
+      eyeR.material.emissiveIntensity = 1 + Math.sin(elapsed * 2 + 0.5) * 0.3;
+    }
+  }
+
+  // Listening state - mouth reacts to mic volume
+  if (crawsState === 'listening' && !isSpeaking && mouthMesh && lerpVolume > 0.02) {
+    mouthMesh.scale.y = 1 + lerpVolume * 1.5;
+  }
+
+  // Teal light pulses subtly
+  tealLight.intensity = 2 + Math.sin(elapsed * 1.5) * 0.5;
+
+  // Grid subtle animation
+  gridHelper.position.y = -2 + Math.sin(elapsed * 0.3) * 0.05;
+
+  composer.render();
+}
+animate();
+
+// ==============================================================
+// REALTIME AUDIO ANALYSIS (MIC)
+// ==============================================================
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+async function startRealtimeAudio() {
+  if (realtimeActive) return;
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    micSource = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.3;
+    micSource.connect(analyser);
+    realtimeActive = true;
+    realtimeAudioLoop();
+  } catch (err) {
+    console.error('Failed to start realtime audio:', err);
+  }
+}
+
+function stopRealtimeAudio() {
+  realtimeActive = false;
+  if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+  if (audioCtx) { audioCtx.close().catch(() => {}); audioCtx = null; }
+  analyser = null;
+  micSource = null;
+  lerpVolume = 0;
+}
+
+function realtimeAudioLoop() {
+  if (!realtimeActive || !analyser) return;
+
+  const dataArray = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(dataArray);
+
+  const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+  const rawVolume = avg / 255;
+  lerpVolume = lerp(lerpVolume, rawVolume, 0.3);
+
+  requestAnimationFrame(realtimeAudioLoop);
+}
+
+// ==============================================================
+// SPEECH SYNTHESIS WITH LIP SYNC
+// ==============================================================
+let selectedVoice = null;
+
+function loadVoices() {
+  const voices = speechSynthesis.getVoices();
+  selectedVoice = voices.find(v => v.lang === 'pt-BR' && v.name.toLowerCase().includes('male'))
+    || voices.find(v => v.lang === 'pt-BR')
+    || voices.find(v => v.lang.startsWith('pt'))
+    || voices.find(v => v.name.includes('Google UK English Male'))
+    || voices.find(v => v.lang.startsWith('en'))
+    || voices[0];
+}
+
+speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
+function speak(text, onDone) {
+  speechSynthesis.cancel();
+  const sentences = text.split(/(?<=\.)\s+/).filter(s => s.trim());
+
+  crawsState = 'speaking';
+  isSpeaking = true;
+  speakingTime = 0;
+
+  let sentenceIdx = 0;
+
+  function speakNext() {
+    if (sentenceIdx >= sentences.length) {
+      isSpeaking = false;
+      crawsState = 'idle';
+      if (onDone) onDone();
+      return;
+    }
+
+    const utter = new SpeechSynthesisUtterance(sentences[sentenceIdx]);
+    if (selectedVoice) utter.voice = selectedVoice;
+    utter.rate = 1.0;
+    utter.pitch = 0.9;
+    utter.volume = 1;
+
+    utter.onend = () => {
+      sentenceIdx++;
+      if (sentenceIdx < sentences.length) {
+        setTimeout(speakNext, 200);
+      } else {
+        speakNext();
+      }
+    };
+
+    utter.onerror = () => {
+      isSpeaking = false;
+      crawsState = 'idle';
+      if (onDone) onDone();
+    };
+
+    speechSynthesis.speak(utter);
+  }
+
+  speakNext();
+}
+
+// ==============================================================
+// TERMINAL
+// ==============================================================
+const termInput = document.getElementById('termInput');
+const termOutput = document.getElementById('termOutput');
+
+function addLine(text, cls = '') {
+  const div = document.createElement('div');
+  div.className = 'line ' + cls;
+  div.textContent = text;
+  termOutput.appendChild(div);
+  termOutput.scrollTop = termOutput.scrollHeight;
+  while (termOutput.children.length > 50) {
+    termOutput.removeChild(termOutput.firstChild);
+  }
+}
+
+function addLineTyped(text, cls = '', onComplete) {
+  const div = document.createElement('div');
+  div.className = 'line ' + cls;
+  termOutput.appendChild(div);
+  let charIdx = 0;
+  const interval = setInterval(() => {
+    div.textContent = text.slice(0, charIdx + 1);
+    charIdx++;
+    termOutput.scrollTop = termOutput.scrollHeight;
+    if (charIdx >= text.length) {
+      clearInterval(interval);
+      if (onComplete) onComplete();
+    }
+  }, 15);
+}
+
+// ==============================================================
+// GROQ API
+// ==============================================================
+const fallbackResponses = [
+  'Opa chefe, meus circuitos de comunicacao tao com lag. Tenta de novo em uns segundos!',
+  'Caramba capitao, perdi a conexao com o servidor. Mas ainda to aqui firme e forte!',
+  'Bug na matrix, chefe! Conexao caiu, mas meus processadores locais tao de pe.'
+];
+
+async function getGroqResponse(userMessage) {
+  conversationHistory.push({ role: 'user', content: userMessage });
+  while (conversationHistory.length > MAX_HISTORY) {
+    conversationHistory.shift();
+  }
+
+  const messages = [
+    { role: 'system', content: CRAWS_SYSTEM_PROMPT },
+    ...conversationHistory
+  ];
+
+  try {
+    const response = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: messages,
+        max_tokens: 200,
+        temperature: 0.8
+      })
+    });
+
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+    const data = await response.json();
+    const assistantMessage = data.choices[0].message.content.trim();
+    conversationHistory.push({ role: 'assistant', content: assistantMessage });
+    return assistantMessage;
+  } catch (error) {
+    console.error('Groq API error:', error);
+    const fallback = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+    conversationHistory.push({ role: 'assistant', content: fallback });
+    return fallback;
+  }
+}
+
+// ==============================================================
+// PROCESS USER INPUT
+// ==============================================================
+async function processUserInput(text) {
+  if (!text.trim() || isProcessingCommand) return;
+  isProcessingCommand = true;
+
+  addLine('VOCE > ' + text, 'user-msg');
+
+  crawsState = 'thinking';
+  addLine('Processando...', 'system-msg');
+
+  try {
+    const response = await getGroqResponse(text);
+
+    // Remove "Processando..." line
+    const lines = termOutput.querySelectorAll('.line.system-msg');
+    const lastSys = lines[lines.length - 1];
+    if (lastSys && lastSys.textContent === 'Processando...') lastSys.remove();
+
+    addLineTyped('[CRAWS] ' + response, 'craws-msg', () => {
+      speak(response, () => {
+        isProcessingCommand = false;
+        if (micEnabled && recognition) {
+          try { recognition.start(); } catch(e) {}
+        }
+      });
+    });
+  } catch (error) {
+    const lines = termOutput.querySelectorAll('.line.system-msg');
+    const lastSys = lines[lines.length - 1];
+    if (lastSys && lastSys.textContent === 'Processando...') lastSys.remove();
+
+    const fallback = 'Eita chefe, deu um curto-circuito aqui! Tenta de novo?';
+    addLine('[CRAWS] ' + fallback, 'craws-msg');
+    speak(fallback, () => {
+      isProcessingCommand = false;
+      if (micEnabled && recognition) {
+        try { recognition.start(); } catch(e) {}
+      }
+    });
+  }
+}
+
+// Text input handler
+termInput.addEventListener('keydown', (ev) => {
+  if (ev.key !== 'Enter') return;
+  const text = termInput.value.trim();
+  if (!text) return;
+  termInput.value = '';
+  processUserInput(text);
+});
+
+// Focus input on keypress
+document.addEventListener('keydown', (ev) => {
+  if (ev.target !== termInput && !ev.ctrlKey && !ev.altKey && !ev.metaKey && ev.key.length === 1) {
+    if (ev.key === 'm' || ev.key === 'M') return;
+    termInput.focus();
+  }
+});
+
+// ==============================================================
+// SPEECH RECOGNITION
+// ==============================================================
+const micIcon = document.getElementById('micIcon');
+const micStatus = document.getElementById('micStatus');
+const liveTranscript = document.getElementById('liveTranscript');
+const liveTranscriptText = document.getElementById('liveTranscriptText');
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = 'pt-BR';
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  let finalTranscript = '';
+
+  recognition.onresult = (event) => {
+    let interim = '';
+    finalTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript;
+      } else {
+        interim += transcript;
+      }
+    }
+
+    if (interim) {
+      liveTranscriptText.textContent = interim;
+      liveTranscript.classList.add('visible');
+    }
+    if (finalTranscript.trim()) {
+      liveTranscriptText.textContent = finalTranscript.trim();
+      liveTranscript.classList.add('visible');
+      setTimeout(() => {
+        liveTranscript.classList.remove('visible');
+        liveTranscriptText.textContent = '';
+      }, 500);
+    }
+
+    if (finalTranscript.trim()) {
+      try { recognition.stop(); } catch(e) {}
+      crawsState = 'thinking';
+      processUserInput(finalTranscript.trim());
+    }
+  };
+
+  recognition.onstart = () => {
+    micIcon.classList.add('active');
+    micStatus.textContent = 'ESCUTANDO...';
+    crawsState = 'listening';
+  };
+
+  recognition.onend = () => {
+    if (micEnabled && !isProcessingCommand) {
+      try { recognition.start(); } catch(e) {}
+    } else {
+      micIcon.classList.remove('active');
+      if (!isProcessingCommand) {
+        micStatus.textContent = micEnabled ? 'REINICIANDO...' : 'MIC OFF';
+        if (crawsState === 'listening') {
+          crawsState = 'idle';
+        }
+      }
+    }
+  };
+
+  recognition.onerror = (event) => {
+    if (event.error === 'no-speech' || event.error === 'aborted') return;
+    console.error('Speech recognition error:', event.error);
+    if (event.error === 'not-allowed') {
+      addLine('[SISTEMA] Microfone bloqueado! Use o campo de texto, chefe.', 'system-msg');
+      micEnabled = false;
+      micIcon.classList.remove('active');
+      micStatus.textContent = 'BLOQUEADO';
+      stopRealtimeAudio();
+    }
+  };
+}
+
+// Toggle mic
+micIcon.addEventListener('click', () => {
+  micEnabled = !micEnabled;
+  if (micEnabled) {
+    micStatus.textContent = 'ATIVANDO...';
+    startRealtimeAudio();
+    if (recognition) {
+      try { recognition.start(); } catch(e) {}
+    }
+    addLine('[SISTEMA] Microfone ativado. Pode falar, chefe!', 'system-msg');
+  } else {
+    micStatus.textContent = 'MIC OFF';
+    micIcon.classList.remove('active');
+    stopRealtimeAudio();
+    if (recognition) {
+      try { recognition.stop(); } catch(e) {}
+    }
+    crawsState = 'idle';
+    addLine('[SISTEMA] Microfone desativado.', 'system-msg');
+  }
+});
+
+// Keyboard shortcut: M to toggle mic
+document.addEventListener('keydown', (ev) => {
+  if ((ev.key === 'm' || ev.key === 'M') && ev.target !== termInput) {
+    micIcon.click();
+  }
+});
+
+// ==============================================================
+// RESIZE HANDLER
+// ==============================================================
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+  bloomPass.resolution.set(innerWidth, innerHeight);
+});
+
+// ==============================================================
+// STARTUP MESSAGE
+// ==============================================================
+addLine('[SISTEMA] OPENCRAWS 3D Preview v1.0', 'system-msg');
+addLine('[SISTEMA] Bloom post-processing enabled.', 'system-msg');
+addLine('[SISTEMA] Carregando modelo 3D...', 'system-msg');
+
+</script>
+</body>
+</html>
