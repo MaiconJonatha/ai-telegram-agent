@@ -3,10 +3,13 @@ import http from "http";
 import { initDatabase, getStats, getRecentActivity, getAgentStats, getConversationCounts, saveMessage } from "./db/memory";
 import bot from "./telegram/bot";
 import { Pool } from "pg";
+import { getSseClients } from "./sse";
 
 const PORT = parseInt(process.env.PORT || "10000");
 const startTime = Date.now();
 const APP_VERSION = "1.0.0";
+
+const sseClients = getSseClients();
 
 console.log("🚀 Iniciando Opencrawsbuties...");
 console.log(`⏰ ${new Date().toLocaleString("pt-BR")}`);
@@ -25,6 +28,40 @@ const server = http.createServer(async (req, res) => {
   }
 
   const url = req.url || '/';
+  const method = req.method || 'GET';
+
+  // SSE endpoint for real-time dashboard updates
+  if (url === '/api/events' && method === 'GET') {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+    });
+
+    sseClients.add(res);
+
+    // Send initial connection event
+    res.write(`data: ${JSON.stringify({ type: 'connected', timestamp: new Date().toISOString() })}\n\n`);
+
+    // Send heartbeat every 30s to keep connection alive
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() })}\n\n`);
+      } catch (e) {
+        clearInterval(heartbeat);
+        sseClients.delete(res);
+      }
+    }, 30000);
+
+    // Remove client on disconnect
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      sseClients.delete(res);
+    });
+
+    return; // Keep connection open
+  }
 
   // Parse JSON body for POST requests
   const parseBody = (): Promise<any> => {

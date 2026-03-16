@@ -7,6 +7,7 @@ import { addMedia, getLastVideos, mergeVideos } from "../agent/media";
 import { listRepos, getRepoTree, readFile, executeCoderTask, isGitHubConfigured } from "../agent/coder";
 import { logMedia, logAgent, clearHistory } from "../db/memory";
 import { InputFile } from "grammy";
+import { broadcastEvent } from "../sse";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const ALLOWED_USERS = (process.env.TELEGRAM_ALLOWED_USER_IDS || "")
@@ -70,6 +71,9 @@ bot.on("message:text", async (ctx) => {
 
   console.log(`[${new Date().toISOString()}] ${userName} (${userId}): ${text}`);
 
+  // Broadcast message event to dashboard
+  broadcastEvent({ type: 'message', data: { user: userName, userId, text, timestamp: new Date().toISOString() } });
+
   try {
     // ========== /help ==========
     if (text === "/help") {
@@ -118,6 +122,7 @@ bot.on("message:text", async (ctx) => {
         addMedia(userId, imgBuffer, "image", prompt);
         logMedia(userId, "image", prompt, "google-flow", imgBuffer.length);
         logAgent(userId, "flow", "generateFlowImage", "success");
+        broadcastEvent({ type: 'media', data: { mediaType: 'image', prompt, provider: 'google-flow', user: userName, timestamp: new Date().toISOString() } });
         await ctx.replyWithPhoto(new InputFile(imgBuffer, "flow-image.png"), {
           caption: `🎨 Google Flow\n\n${prompt}`,
         });
@@ -146,6 +151,7 @@ bot.on("message:text", async (ctx) => {
         addMedia(userId, vidBuffer, "video", prompt);
         logMedia(userId, "video", prompt, "google-flow", vidBuffer.length);
         logAgent(userId, "flow", "generateFlowVideo", "success");
+        broadcastEvent({ type: 'media', data: { mediaType: 'video', prompt, provider: 'google-flow', user: userName, timestamp: new Date().toISOString() } });
         await ctx.replyWithVideo(new InputFile(vidBuffer, "flow-video.mp4"), {
           caption: `🎬 Google Flow\n\n${prompt}`,
         });
@@ -227,6 +233,7 @@ bot.on("message:text", async (ctx) => {
         addMedia(userId, imgBuffer, "image", imgMatch[1]);
         logMedia(userId, "image", imgMatch[1], "alternative", imgBuffer.length);
         logAgent(userId, "image-gen", "generateImage", "success");
+        broadcastEvent({ type: 'media', data: { mediaType: 'image', prompt: imgMatch[1], provider: 'alternative', user: userName, timestamp: new Date().toISOString() } });
         await ctx.replyWithPhoto(new InputFile(imgBuffer, "image.png"), { caption: imgMatch[1] });
       } else {
         logAgent(userId, "image-gen", "generateImage", "failed");
@@ -252,6 +259,7 @@ bot.on("message:text", async (ctx) => {
         addMedia(userId, vidBuffer, "video", vidMatch[1]);
         logMedia(userId, "video", vidMatch[1], "gemini-veo", vidBuffer.length);
         logAgent(userId, "video-gen", "generateVideo", "success");
+        broadcastEvent({ type: 'media', data: { mediaType: 'video', prompt: vidMatch[1], provider: 'gemini-veo', user: userName, timestamp: new Date().toISOString() } });
         await ctx.replyWithVideo(new InputFile(vidBuffer, "video.mp4"), { caption: vidMatch[1] });
       } else {
         logAgent(userId, "video-gen", "generateVideo", "failed");
@@ -344,6 +352,7 @@ bot.on("message:text", async (ctx) => {
       await ctx.reply(`🤖 Trabalhando na tarefa...\n📦 Repo: ${activeRepo[userId]}\n\nIsso pode levar alguns segundos.`);
       await ctx.replyWithChatAction("typing");
 
+      broadcastEvent({ type: 'agent', data: { agent: 'coder', action: 'executeTask', repo: activeRepo[userId], user: userName, timestamp: new Date().toISOString() } });
       const result = await executeCoderTask(codeMatch[1].trim(), activeRepo[userId]);
 
       // Dividir resposta longa
@@ -439,6 +448,7 @@ bot.on("message:text", async (ctx) => {
         await ctx.reply("📤 Vídeo gerado! Postando no Instagram...");
         const posted = await postToInstagram(vidBuffer, prompt, true);
         logAgent(userId, "instagram", "postToInstagram-video", posted ? "success" : "failed");
+        broadcastEvent({ type: 'instagram', data: { status: posted ? 'success' : 'failed', mediaType: 'video', prompt, user: userName, timestamp: new Date().toISOString() } });
         if (posted) {
           await ctx.replyWithVideo(new InputFile(vidBuffer, "instagram-video.mp4"), {
             caption: `✅ Vídeo postado no Instagram!\n\n${prompt}`,
@@ -464,6 +474,7 @@ bot.on("message:text", async (ctx) => {
         await ctx.reply("📤 Imagem gerada! Postando no Instagram...");
         const posted = await postToInstagram(imgBuffer, prompt, false);
         logAgent(userId, "instagram", "postToInstagram-image", posted ? "success" : "failed");
+        broadcastEvent({ type: 'instagram', data: { status: posted ? 'success' : 'failed', mediaType: 'image', prompt, user: userName, timestamp: new Date().toISOString() } });
         if (posted) {
           await ctx.replyWithPhoto(new InputFile(imgBuffer, "instagram-image.png"), {
             caption: `✅ Imagem postada no Instagram!\n\n${prompt}`,
@@ -498,6 +509,7 @@ bot.on("message:text", async (ctx) => {
         addMedia(userId, vidBuffer, "video", prompt);
         logMedia(userId, "video", prompt, "google-flow", vidBuffer.length);
         logAgent(userId, "flow", "generateFlowVideo-natural", "success");
+        broadcastEvent({ type: 'media', data: { mediaType: 'video', prompt, provider: 'google-flow', user: userName, timestamp: new Date().toISOString() } });
         await ctx.replyWithVideo(new InputFile(vidBuffer, "flow-video.mp4"), {
           caption: `🎬 Google Flow\n\n${prompt}`,
         });
@@ -524,6 +536,7 @@ bot.on("message:text", async (ctx) => {
         addMedia(userId, imgBuffer, "image", prompt);
         logMedia(userId, "image", prompt, "google-flow", imgBuffer.length);
         logAgent(userId, "flow", "generateFlowImage-natural", "success");
+        broadcastEvent({ type: 'media', data: { mediaType: 'image', prompt, provider: 'google-flow', user: userName, timestamp: new Date().toISOString() } });
         await ctx.replyWithPhoto(new InputFile(imgBuffer, "flow-image.png"), {
           caption: `🎨 ${prompt}`,
         });
