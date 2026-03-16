@@ -1777,6 +1777,13 @@ setTimeout(() => {
       speak(greeting);
     });
   }, 6000 + bootLogMessages.length * 300 + 400);
+
+  // Step 11: Auto-activate microphone after boot (9s)
+  setTimeout(() => {
+    if (!micEnabled) {
+      micToggle.click();
+    }
+  }, 9000);
 })();
 
 // ==============================================================

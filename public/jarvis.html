@@ -2703,6 +2703,13 @@ window.addEventListener('resize', () => {
   setTimeout(() => {
     drawAgentConnections();
   }, 6000);
+
+  // Step 9: Auto-activate microphone (8s)
+  setTimeout(() => {
+    if (!micEnabled && micToggle) {
+      micToggle.click();
+    }
+  }, 8000);
 })();
 
 // ══════════════════════════════════════════
