@@ -33,18 +33,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;color:#fff;f
 @keyframes dotPulseCyan{0%,100%{opacity:0.4}50%{opacity:0.9}}
 
 /* ── Robot face container ── */
-.robot-face-wrapper{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%);z-index:6;perspective:800px;width:360px;height:420px;
+.robot-face-wrapper{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%);z-index:6;perspective:800px;width:300px;height:300px;
   animation: bodyFloat 3s ease-in-out infinite}
-.robot-face-container{width:360px;height:420px;transition:transform 0.2s ease-out;transform-style:preserve-3d;will-change:transform;
+.robot-face-container{width:300px;height:300px;transition:transform 0.2s ease-out;transform-style:preserve-3d;will-change:transform;
   animation: bodySway 4s ease-in-out infinite}
-.robot-face-container svg{width:100%;height:100%;filter:drop-shadow(0 0 30px rgba(0,229,204,0.1))}
+.robot-face-container svg{width:100%;height:100%;filter:drop-shadow(0 0 30px rgba(204,34,34,0.2))}
 
 /* ── Body sway & float (breathing illusion) ── */
 @keyframes bodySway{0%,100%{transform:rotate(0deg)}25%{transform:rotate(0.5deg)}75%{transform:rotate(-0.5deg)}}
 @keyframes bodyFloat{0%,100%{margin-top:0}50%{margin-top:-2px}}
 
 /* ── Circular audio visualizer ── */
-.circular-visualizer{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%);z-index:5;width:440px;height:440px;pointer-events:none}
+.circular-visualizer{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%);z-index:5;width:380px;height:380px;pointer-events:none}
 .circular-visualizer .viz-bar{position:absolute;bottom:50%;left:50%;width:3px;background:#00e5cc;border-radius:2px;transform-origin:bottom center;opacity:0.4;transition:height 0.08s ease,opacity 0.1s ease}
 
 /* ── Mic indicator ── */
@@ -143,8 +143,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;color:#fff;f
 
 /* ── Responsive ── */
 @media(max-width:768px){
-  .robot-face-wrapper{width:260px;height:320px;top:40%}
-  .robot-face-container{width:260px;height:320px}
+  .robot-face-wrapper{width:220px;height:220px;top:40%}
+  .robot-face-container{width:220px;height:220px}
   .circular-visualizer{width:320px;height:320px;top:40%}
   .title h1{font-size:12px;letter-spacing:3px}
   .status-panel{bottom:70px;left:10px;font-size:8px}
@@ -202,164 +202,121 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d1117;color:#fff;f
 <!-- Robot Face -->
 <div class="robot-face-wrapper" id="robotFaceWrapper">
 <div class="robot-face-container" id="robotFaceContainer">
-<svg id="crawsFace" viewBox="0 0 360 420" xmlns="http://www.w3.org/2000/svg">
+<svg id="crawsFace" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#ff5555"/>
+      <stop offset="40%" stop-color="#ff4444"/>
+      <stop offset="80%" stop-color="#dd2222"/>
+      <stop offset="100%" stop-color="#cc2222"/>
+    </radialGradient>
+    <radialGradient id="highlightGrad" cx="38%" cy="30%" r="40%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+    <filter id="bodyShadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="rgba(0,0,0,0.3)"/>
+    </filter>
     <filter id="glowCyan">
       <feGaussianBlur stdDeviation="3" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <filter id="glowOrange">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="eyeGlow">
-      <feGaussianBlur stdDeviation="5" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="strongGlow">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <radialGradient id="eyeGlowGrad" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="rgba(0,229,204,0.6)"/>
-      <stop offset="100%" stop-color="rgba(0,229,204,0)"/>
-    </radialGradient>
-    <linearGradient id="shellGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ff4444"/>
-      <stop offset="100%" stop-color="#cc2222"/>
-    </linearGradient>
-    <radialGradient id="bodyGrad" cx="50%" cy="35%" r="60%">
-      <stop offset="0%" stop-color="#cc3333"/>
-      <stop offset="60%" stop-color="#aa1111"/>
-      <stop offset="100%" stop-color="#8b1a1a"/>
-    </radialGradient>
-    <!-- Clip paths for eyelids -->
-    <clipPath id="leftEyeClip">
-      <rect id="leftEyeClipRect" x="100" y="145" width="60" height="60"/>
-    </clipPath>
-    <clipPath id="rightEyeClip">
-      <rect id="rightEyeClipRect" x="200" y="145" width="60" height="60"/>
-    </clipPath>
   </defs>
 
-  <!-- ═══ HEAD / SHELL (egg-shaped lobster body) ═══ -->
-  <path d="M 75 200 Q 70 100 110 65 Q 145 40 180 38 Q 215 40 250 65 Q 290 100 285 200 Q 285 280 245 310 Q 210 335 180 340 Q 150 335 115 310 Q 75 280 75 200 Z"
-    fill="url(#bodyGrad)" stroke="rgba(0,229,204,0.25)" stroke-width="1.2" id="headShell"/>
-  <path d="M 85 195 Q 80 105 115 75 Q 148 50 180 48 Q 212 50 245 75 Q 280 105 275 195 Q 275 270 240 298 Q 210 320 180 325 Q 150 320 120 298 Q 85 270 85 195 Z"
-    fill="none" stroke="rgba(0,229,204,0.1)" stroke-width="0.6"/>
-  <path d="M 120 85 Q 150 60 180 55 Q 210 60 240 85" fill="none" stroke="rgba(0,229,204,0.2)" stroke-width="0.8"/>
-  <path d="M 130 100 Q 155 78 180 73 Q 205 78 230 100" fill="none" stroke="rgba(0,229,204,0.12)" stroke-width="0.5"/>
-
-  <!-- ═══ ANTENNAE / FEELERS ═══ -->
+  <!-- ═══ ANTENNAE / CRAB CLAWS ON TOP ═══ -->
   <g id="antennaGroup">
-    <!-- Left antenna -->
-    <path id="antennaL" d="M 140 80 Q 120 40 100 20" fill="none" stroke="rgba(0,229,204,0.4)" stroke-width="1.5" stroke-linecap="round"
-      style="transition: d 0.4s cubic-bezier(0.34,1.56,0.64,1)"/>
-    <circle id="antennaTipL" cx="100" cy="20" r="4" fill="rgba(0,229,204,0.6)" filter="url(#glowCyan)"
-      style="transition: cx 0.4s cubic-bezier(0.34,1.56,0.64,1), cy 0.4s cubic-bezier(0.34,1.56,0.64,1)"/>
-    <!-- Right antenna -->
-    <path id="antennaR" d="M 220 80 Q 240 40 260 20" fill="none" stroke="rgba(0,229,204,0.4)" stroke-width="1.5" stroke-linecap="round"
-      style="transition: d 0.4s cubic-bezier(0.34,1.56,0.64,1)"/>
-    <circle id="antennaTipR" cx="260" cy="20" r="4" fill="rgba(0,229,204,0.6)" filter="url(#glowCyan)"
-      style="transition: cx 0.4s cubic-bezier(0.34,1.56,0.64,1), cy 0.4s cubic-bezier(0.34,1.56,0.64,1)"/>
-  </g>
-
-  <!-- ═══ ARMOR PLATE LINES (cheeks) ═══ -->
-  <line x1="88" y1="180" x2="95" y2="230" stroke="rgba(0,229,204,0.12)" stroke-width="0.5"/>
-  <line x1="92" y1="175" x2="100" y2="245" stroke="rgba(0,229,204,0.08)" stroke-width="0.4"/>
-  <path d="M 95 190 L 110 195 L 108 215 L 93 210 Z" fill="none" stroke="rgba(0,229,204,0.08)" stroke-width="0.4"/>
-  <line x1="272" y1="180" x2="265" y2="230" stroke="rgba(0,229,204,0.12)" stroke-width="0.5"/>
-  <line x1="268" y1="175" x2="260" y2="245" stroke="rgba(0,229,204,0.08)" stroke-width="0.4"/>
-  <path d="M 265 190 L 250 195 L 252 215 L 267 210 Z" fill="none" stroke="rgba(0,229,204,0.08)" stroke-width="0.4"/>
-  <path d="M 130 120 L 180 115 L 230 120" fill="none" stroke="rgba(0,229,204,0.08)" stroke-width="0.4"/>
-  <path d="M 140 135 L 180 130 L 220 135" fill="none" stroke="rgba(0,229,204,0.06)" stroke-width="0.3"/>
-
-  <!-- ═══ EYEBROW RIDGES ═══ -->
-  <path id="browL" d="M 108 148 Q 130 140 152 148" fill="none" stroke="rgba(0,229,204,0.35)" stroke-width="1.5" stroke-linecap="round"
-    style="transition: d 0.3s ease"/>
-  <path id="browR" d="M 208 148 Q 230 140 252 148" fill="none" stroke="rgba(0,229,204,0.35)" stroke-width="1.5" stroke-linecap="round"
-    style="transition: d 0.3s ease"/>
-
-  <!-- ═══ EYES ═══ -->
-  <circle cx="130" cy="175" r="30" fill="url(#eyeGlowGrad)" filter="url(#strongGlow)" opacity="0.4" class="eye-ambient"/>
-  <circle cx="230" cy="175" r="30" fill="url(#eyeGlowGrad)" filter="url(#strongGlow)" opacity="0.4" class="eye-ambient"/>
-
-  <!-- Left eye group with eyelid clipping -->
-  <g id="leftEyeGroup" style="transform-origin: 130px 175px" clip-path="url(#leftEyeClip)">
-    <circle cx="130" cy="175" r="28" fill="#1a0a0a" stroke="rgba(0,229,204,0.3)" stroke-width="1"/>
-    <circle cx="130" cy="175" r="24" fill="none" stroke="rgba(0,229,204,0.2)" stroke-width="0.8" stroke-dasharray="4 2"/>
-    <circle cx="130" cy="175" r="18" fill="none" stroke="rgba(0,229,204,0.15)" stroke-width="0.5"/>
-    <circle id="irisL" cx="130" cy="175" r="14" fill="rgba(0,229,204,0.08)" stroke="rgba(0,229,204,0.3)" stroke-width="0.6"/>
-    <circle id="pupilL" cx="130" cy="175" r="8" fill="rgba(0,229,204,0.9)" filter="url(#eyeGlow)"
-      style="transition: cx 0.3s ease, cy 0.3s ease, r 0.3s ease"/>
-    <circle cx="124" cy="169" r="3" fill="rgba(255,255,255,0.3)"/>
-  </g>
-
-  <!-- Upper eyelid left (drawn OVER the eye, outside clip) -->
-  <path id="eyelidL" d="M 102 175 Q 130 175 158 175" fill="#8b1a1a" stroke="rgba(0,229,204,0.2)" stroke-width="0.5"
-    style="transition: d 0.3s ease"/>
-
-  <!-- Right eye group with eyelid clipping -->
-  <g id="rightEyeGroup" style="transform-origin: 230px 175px" clip-path="url(#rightEyeClip)">
-    <circle cx="230" cy="175" r="28" fill="#1a0a0a" stroke="rgba(0,229,204,0.3)" stroke-width="1"/>
-    <circle cx="230" cy="175" r="24" fill="none" stroke="rgba(0,229,204,0.2)" stroke-width="0.8" stroke-dasharray="4 2"/>
-    <circle cx="230" cy="175" r="18" fill="none" stroke="rgba(0,229,204,0.15)" stroke-width="0.5"/>
-    <circle id="irisR" cx="230" cy="175" r="14" fill="rgba(0,229,204,0.08)" stroke="rgba(0,229,204,0.3)" stroke-width="0.6"/>
-    <circle id="pupilR" cx="230" cy="175" r="8" fill="rgba(0,229,204,0.9)" filter="url(#eyeGlow)"
-      style="transition: cx 0.3s ease, cy 0.3s ease, r 0.3s ease"/>
-    <circle cx="224" cy="169" r="3" fill="rgba(255,255,255,0.3)"/>
-  </g>
-
-  <!-- Upper eyelid right -->
-  <path id="eyelidR" d="M 202 175 Q 230 175 258 175" fill="#8b1a1a" stroke="rgba(0,229,204,0.2)" stroke-width="0.5"
-    style="transition: d 0.3s ease"/>
-
-  <!-- ═══ ORGANIC MOUTH ═══ -->
-  <g id="mouthGroup" style="transform-origin: 180px 270px">
-    <!-- Chin area that shifts down when mouth opens -->
-    <g id="chinGroup" style="transition: transform 0.25s ease">
-      <path d="M 130 310 Q 155 330 180 335 Q 205 330 230 310" fill="none" stroke="rgba(0,229,204,0.1)" stroke-width="0.5"/>
-      <line x1="180" y1="290" x2="180" y2="330" stroke="rgba(0,229,204,0.06)" stroke-width="0.3"/>
+    <!-- Left pincer/claw antenna -->
+    <g id="leftClaw" style="transform-origin: 75px 50px; transition: transform 0.4s cubic-bezier(0.34,1.2,0.64,1)">
+      <path id="antennaL" d="M 80 65 Q 68 45 55 35 Q 48 30 52 22 Q 58 15 65 20 Q 72 25 75 35"
+        fill="#bb2222" stroke="#aa1a1a" stroke-width="1.2" stroke-linejoin="round"
+        style="transition: d 0.4s cubic-bezier(0.34,1.56,0.64,1)"/>
+      <circle id="antennaTipL" cx="65" cy="20" r="0" fill="transparent"
+        style="transition: cx 0.4s cubic-bezier(0.34,1.56,0.64,1), cy 0.4s cubic-bezier(0.34,1.56,0.64,1)"/>
     </g>
+    <!-- Right pincer/claw antenna -->
+    <g id="rightClaw" style="transform-origin: 125px 50px; transition: transform 0.4s cubic-bezier(0.34,1.2,0.64,1)">
+      <path id="antennaR" d="M 120 65 Q 132 45 145 35 Q 152 30 148 22 Q 142 15 135 20 Q 128 25 125 35"
+        fill="#bb2222" stroke="#aa1a1a" stroke-width="1.2" stroke-linejoin="round"
+        style="transition: d 0.4s cubic-bezier(0.34,1.56,0.64,1)"/>
+      <circle id="antennaTipR" cx="135" cy="20" r="0" fill="transparent"
+        style="transition: cx 0.4s cubic-bezier(0.34,1.56,0.64,1), cy 0.4s cubic-bezier(0.34,1.56,0.64,1)"/>
+    </g>
+  </g>
 
-    <!-- Upper lip arc -->
-    <path id="upperLip" d="M 150 265 Q 165 260 180 262 Q 195 260 210 265"
-      fill="none" stroke="rgba(0,200,180,0.5)" stroke-width="1.2" stroke-linecap="round"
-      style="transition: d 0.2s ease"/>
+  <!-- ═══ MAIN BODY (round ball) ═══ -->
+  <circle cx="100" cy="125" r="75" fill="url(#bodyGrad)" filter="url(#bodyShadow)" id="headShell"/>
+  <!-- 3D highlight overlay -->
+  <circle cx="100" cy="125" r="75" fill="url(#highlightGrad)"/>
+  <!-- Subtle rim light -->
+  <circle cx="100" cy="125" r="74" fill="none" stroke="rgba(255,120,120,0.15)" stroke-width="1"/>
 
-    <!-- Mouth opening (ellipse) -->
-    <ellipse id="mouth" cx="180" cy="267" rx="22" ry="1"
-      fill="rgba(0,180,160,0.15)" stroke="rgba(0,229,204,0.3)" stroke-width="0.8"
+  <!-- ═══ EYES (small black dots, kawaii style) ═══ -->
+  <!-- Left eye -->
+  <g id="leftEyeGroup" style="transform-origin: 85px 110px">
+    <circle id="pupilL" cx="85" cy="110" r="7" fill="#1a1a1a"
+      style="transition: cx 0.3s ease, cy 0.3s ease, r 0.3s ease"/>
+    <!-- White highlight dot -->
+    <circle id="highlightL" cx="83" cy="107" r="2.5" fill="rgba(255,255,255,0.7)"
+      style="transition: cx 0.3s ease, cy 0.3s ease"/>
+  </g>
+  <!-- Eyelid left (invisible by default, used for emotions) -->
+  <path id="eyelidL" d="M 0 0" fill="#dd2222" opacity="0"
+    style="transition: d 0.3s ease, opacity 0.3s ease"/>
+
+  <!-- Right eye -->
+  <g id="rightEyeGroup" style="transform-origin: 115px 110px">
+    <circle id="pupilR" cx="115" cy="110" r="7" fill="#1a1a1a"
+      style="transition: cx 0.3s ease, cy 0.3s ease, r 0.3s ease"/>
+    <!-- White highlight dot -->
+    <circle id="highlightR" cx="113" cy="107" r="2.5" fill="rgba(255,255,255,0.7)"
+      style="transition: cx 0.3s ease, cy 0.3s ease"/>
+  </g>
+  <!-- Eyelid right (invisible by default) -->
+  <path id="eyelidR" d="M 0 0" fill="#dd2222" opacity="0"
+    style="transition: d 0.3s ease, opacity 0.3s ease"/>
+
+  <!-- Happy eyes (curved lines, hidden by default) -->
+  <path id="happyEyeL" d="M 78 112 Q 85 105 92 112" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round" opacity="0"
+    style="transition: opacity 0.3s ease"/>
+  <path id="happyEyeR" d="M 108 112 Q 115 105 122 112" fill="none" stroke="#1a1a1a" stroke-width="3" stroke-linecap="round" opacity="0"
+    style="transition: opacity 0.3s ease"/>
+
+  <!-- Blush circles (hidden by default) -->
+  <circle id="blushL" cx="72" cy="122" r="8" fill="rgba(255,100,100,0.35)" opacity="0"
+    style="transition: opacity 0.4s ease"/>
+  <circle id="blushR" cx="128" cy="122" r="8" fill="rgba(255,100,100,0.35)" opacity="0"
+    style="transition: opacity 0.4s ease"/>
+
+  <!-- Thinking dots (hidden by default) -->
+  <g id="thinkingDots" opacity="0" style="transition: opacity 0.3s ease">
+    <circle cx="130" cy="130" r="2" fill="#1a1a1a"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" repeatCount="indefinite" begin="0s"/></circle>
+    <circle cx="138" cy="130" r="2" fill="#1a1a1a"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" repeatCount="indefinite" begin="0.3s"/></circle>
+    <circle cx="146" cy="130" r="2" fill="#1a1a1a"><animate attributeName="opacity" values="0.3;1;0.3" dur="1.2s" repeatCount="indefinite" begin="0.6s"/></circle>
+  </g>
+
+  <!-- Sweat drop (hidden by default, for nervous) -->
+  <path id="sweatDrop" d="M 140 85 Q 143 78 140 72 Q 137 78 140 85 Z" fill="rgba(100,180,255,0.6)" opacity="0"
+    style="transition: opacity 0.3s ease"/>
+
+  <!-- Sparkles (hidden by default, for happy) -->
+  <g id="sparkles" opacity="0" style="transition: opacity 0.3s ease">
+    <polygon points="60,80 62,75 64,80 62,85" fill="rgba(255,255,200,0.8)"/>
+    <polygon points="140,80 142,75 144,80 142,85" fill="rgba(255,255,200,0.8)"/>
+  </g>
+
+  <!-- ═══ MOUTH (hidden by default, appears when speaking) ═══ -->
+  <g id="mouthGroup" style="transform-origin: 100px 135px">
+    <g id="chinGroup" style="transition: transform 0.25s ease"></g>
+    <path id="upperLip" d="M 0 0" fill="none" stroke="none" stroke-width="0" opacity="0"/>
+    <ellipse id="mouth" cx="100" cy="135" rx="8" ry="0"
+      fill="rgba(80,20,20,0.7)" stroke="rgba(60,10,10,0.5)" stroke-width="0.8"
       style="transition: rx 0.15s ease, ry 0.15s ease, cy 0.15s ease"/>
-
-    <!-- Lower lip arc -->
-    <path id="lowerLip" d="M 152 269 Q 166 273 180 274 Q 194 273 208 269"
-      fill="none" stroke="rgba(0,180,160,0.4)" stroke-width="1" stroke-linecap="round"
-      style="transition: d 0.2s ease"/>
+    <path id="lowerLip" d="M 0 0" fill="none" stroke="none" stroke-width="0" opacity="0"/>
   </g>
 
-  <!-- ═══ CLAW DECORATIONS ═══ -->
-  <!-- Left claw -->
-  <g id="leftClaw" style="transform-origin: 50px 220px; transition: transform 0.4s cubic-bezier(0.34,1.2,0.64,1)">
-    <path d="M 70 185 Q 45 175 25 190 Q 15 200 20 210 L 55 205" fill="#ff4444" stroke="rgba(204,34,34,0.6)" stroke-width="1" stroke-linejoin="round"/>
-    <path d="M 70 235 Q 45 245 25 230 Q 15 220 20 210 L 55 215" fill="#cc2222" stroke="rgba(204,34,34,0.6)" stroke-width="1" stroke-linejoin="round"/>
-    <circle cx="68" cy="210" r="6" fill="#cc2222" stroke="rgba(255,68,68,0.4)" stroke-width="0.8"/>
-    <rect x="62" y="195" width="16" height="30" rx="4" fill="#aa1111" stroke="rgba(0,229,204,0.15)" stroke-width="0.5"/>
-  </g>
-
-  <!-- Right claw -->
-  <g id="rightClaw" style="transform-origin: 310px 220px; transition: transform 0.4s cubic-bezier(0.34,1.2,0.64,1)">
-    <path d="M 290 185 Q 315 175 335 190 Q 345 200 340 210 L 305 205" fill="#ff4444" stroke="rgba(204,34,34,0.6)" stroke-width="1" stroke-linejoin="round"/>
-    <path d="M 290 235 Q 315 245 335 230 Q 345 220 340 210 L 305 215" fill="#cc2222" stroke="rgba(204,34,34,0.6)" stroke-width="1" stroke-linejoin="round"/>
-    <circle cx="292" cy="210" r="6" fill="#cc2222" stroke="rgba(255,68,68,0.4)" stroke-width="0.8"/>
-    <rect x="282" y="195" width="16" height="30" rx="4" fill="#aa1111" stroke="rgba(0,229,204,0.15)" stroke-width="0.5"/>
-  </g>
-
-  <!-- ═══ DECORATIVE DETAILS ═══ -->
-  <path d="M 150 100 L 180 95 L 210 100" fill="none" stroke="rgba(255,107,53,0.35)" stroke-width="1.5"/>
-  <circle cx="180" cy="145" r="3" fill="rgba(255,107,53,0.5)" id="foreheadIndicator">
-    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite"/>
-  </circle>
+  <!-- Brow placeholders (invisible, referenced by JS) -->
+  <path id="browL" d="M 0 0" fill="none" stroke="none" opacity="0" style="transition: d 0.3s ease"/>
+  <path id="browR" d="M 0 0" fill="none" stroke="none" opacity="0" style="transition: d 0.3s ease"/>
 </svg>
 </div>
 </div>
@@ -445,8 +402,18 @@ let currentEmotion = 'neutral';
 // ==============================================================
 const pupilL = document.getElementById('pupilL');
 const pupilR = document.getElementById('pupilR');
-const irisL = document.getElementById('irisL');
-const irisR = document.getElementById('irisR');
+const highlightL = document.getElementById('highlightL');
+const highlightR = document.getElementById('highlightR');
+const happyEyeL = document.getElementById('happyEyeL');
+const happyEyeR = document.getElementById('happyEyeR');
+const blushL = document.getElementById('blushL');
+const blushR = document.getElementById('blushR');
+const thinkingDots = document.getElementById('thinkingDots');
+const sweatDrop = document.getElementById('sweatDrop');
+const sparkles = document.getElementById('sparkles');
+// Compatibility aliases for old code
+const irisL = pupilL;
+const irisR = pupilR;
 const leftEyeGroup = document.getElementById('leftEyeGroup');
 const rightEyeGroup = document.getElementById('rightEyeGroup');
 const robotFaceContainer = document.getElementById('robotFaceContainer');
@@ -466,8 +433,6 @@ const browL = document.getElementById('browL');
 const browR = document.getElementById('browR');
 const eyelidL = document.getElementById('eyelidL');
 const eyelidR = document.getElementById('eyelidR');
-const leftEyeClipRect = document.getElementById('leftEyeClipRect');
-const rightEyeClipRect = document.getElementById('rightEyeClipRect');
 
 // ==============================================================
 // UTILITY
@@ -503,9 +468,9 @@ for (let i = 0; i < NUM_CIRC_BARS; i++) {
   bar.className = 'viz-bar';
   const angle = (i / NUM_CIRC_BARS) * 360;
   const radAngle = (angle * Math.PI) / 180;
-  const radius = 200;
-  const cx = 220 + Math.cos(radAngle) * radius - 1.5;
-  const cy = 220 + Math.sin(radAngle) * radius;
+  const radius = 170;
+  const cx = 190 + Math.cos(radAngle) * radius - 1.5;
+  const cy = 190 + Math.sin(radAngle) * radius;
   bar.style.left = cx + 'px';
   bar.style.top = cy + 'px';
   bar.style.height = '4px';
@@ -554,34 +519,22 @@ function stopCircularViz() {
 // ORGANIC MOUTH SYSTEM
 // ==============================================================
 let mouthAnimFrame = null;
-let lerpMouthRY = 1;
-let lerpMouthRX = 22;
+let lerpMouthRY = 0;
+let lerpMouthRX = 8;
 
 // Set mouth shape based on volume (0-1)
 function setMouthVolume(volume) {
-  const targetRY = volume * 12;
-  const targetRX = 18 + volume * 8;
+  const targetRY = volume * 6;
+  const targetRX = 6 + volume * 4;
   lerpMouthRY = lerp(lerpMouthRY, targetRY, 0.3);
   lerpMouthRX = lerp(lerpMouthRX, targetRX, 0.3);
 
-  mouth.setAttribute('ry', Math.max(1, lerpMouthRY));
+  mouth.setAttribute('ry', Math.max(0, lerpMouthRY));
   mouth.setAttribute('rx', lerpMouthRX);
 
-  // Upper lip curves up with volume
-  const lipLift = Math.min(volume * 5, 4);
-  upperLip.setAttribute('d', `M 150 ${265 - lipLift} Q 165 ${258 - lipLift} 180 ${260 - lipLift} Q 195 ${258 - lipLift} 210 ${265 - lipLift}`);
-
-  // Lower lip curves down with volume
-  const lipDrop = Math.min(volume * 6, 5);
-  lowerLip.setAttribute('d', `M 152 ${269 + lipDrop} Q 166 ${273 + lipDrop * 1.2} 180 ${274 + lipDrop * 1.3} Q 194 ${273 + lipDrop * 1.2} 208 ${269 + lipDrop}`);
-
   // Mouth fill opacity increases with opening
-  const fillAlpha = 0.15 + volume * 0.4;
-  mouth.setAttribute('fill', `rgba(0,180,160,${fillAlpha})`);
-
-  // Chin shifts down slightly when mouth opens wide
-  const chinShift = Math.min(volume * 4, 3);
-  chinGroup.style.transform = `translateY(${chinShift}px)`;
+  const fillAlpha = 0.5 + volume * 0.3;
+  mouth.setAttribute('fill', `rgba(80,20,20,${fillAlpha})`);
 }
 
 // Multi-sine speaking animation (like jarvis.html)
@@ -590,12 +543,9 @@ function startMouthAnimation() {
   let t = 0;
   function animateMouth() {
     if (!isSpeaking) {
-      mouth.setAttribute('ry', '1');
-      mouth.setAttribute('rx', '22');
-      upperLip.setAttribute('d', 'M 150 265 Q 165 260 180 262 Q 195 260 210 265');
-      lowerLip.setAttribute('d', 'M 152 269 Q 166 273 180 274 Q 194 273 208 269');
-      chinGroup.style.transform = 'translateY(0)';
-      mouth.setAttribute('fill', 'rgba(0,180,160,0.15)');
+      mouth.setAttribute('ry', '0');
+      mouth.setAttribute('rx', '8');
+      mouth.setAttribute('fill', 'rgba(80,20,20,0.7)');
       return;
     }
     t += 0.12;
@@ -615,14 +565,11 @@ function startMouthAnimation() {
 function stopMouthAnimation() {
   isSpeaking = false;
   if (mouthAnimFrame) cancelAnimationFrame(mouthAnimFrame);
-  lerpMouthRY = 1;
-  lerpMouthRX = 22;
-  mouth.setAttribute('ry', '1');
-  mouth.setAttribute('rx', '22');
-  upperLip.setAttribute('d', 'M 150 265 Q 165 260 180 262 Q 195 260 210 265');
-  lowerLip.setAttribute('d', 'M 152 269 Q 166 273 180 274 Q 194 273 208 269');
-  chinGroup.style.transform = 'translateY(0)';
-  mouth.setAttribute('fill', 'rgba(0,180,160,0.15)');
+  lerpMouthRY = 0;
+  lerpMouthRX = 8;
+  mouth.setAttribute('ry', '0');
+  mouth.setAttribute('rx', '8');
+  mouth.setAttribute('fill', 'rgba(80,20,20,0.7)');
 }
 
 // ==============================================================
@@ -636,19 +583,30 @@ function setEyelids(levelL, levelR) {
   currentEyelidL = levelL;
   currentEyelidR = levelR;
 
-  // Eyelid path: when open, it sits at the top edge of the eye; when closed, it covers the eye center
-  // The eyelid is a filled area from the top of the eye socket down to the eyelid line
-  const eyeTop = 147; // top of eye socket
-  const eyeCenter = 175;
-  const eyeBottom = 203;
+  // For the kawaii mascot, blink = shrink the eye vertically using scaleY
+  if (levelL >= 0.9) {
+    // Closed - squish the eye
+    leftEyeGroup.style.transform = 'scaleY(0.1)';
+    eyelidL.style.opacity = '0';
+  } else if (levelL > 0.2) {
+    // Half-closed (squinted)
+    leftEyeGroup.style.transform = `scaleY(${1 - levelL * 0.7})`;
+    eyelidL.style.opacity = '0';
+  } else {
+    leftEyeGroup.style.transform = 'scaleY(1)';
+    eyelidL.style.opacity = '0';
+  }
 
-  // Left eyelid: moves from top to cover more of the eye
-  const lidYL = eyeTop + (eyeCenter - eyeTop + 5) * levelL;
-  eyelidL.setAttribute('d', `M 102 ${eyeTop} L 102 ${lidYL} Q 130 ${lidYL + 4 * levelL} 158 ${lidYL} L 158 ${eyeTop} Z`);
-
-  // Right eyelid
-  const lidYR = eyeTop + (eyeCenter - eyeTop + 5) * levelR;
-  eyelidR.setAttribute('d', `M 202 ${eyeTop} L 202 ${lidYR} Q 230 ${lidYR + 4 * levelR} 258 ${lidYR} L 258 ${eyeTop} Z`);
+  if (levelR >= 0.9) {
+    rightEyeGroup.style.transform = 'scaleY(0.1)';
+    eyelidR.style.opacity = '0';
+  } else if (levelR > 0.2) {
+    rightEyeGroup.style.transform = `scaleY(${1 - levelR * 0.7})`;
+    eyelidR.style.opacity = '0';
+  } else {
+    rightEyeGroup.style.transform = 'scaleY(1)';
+    eyelidR.style.opacity = '0';
+  }
 }
 
 // Initialize eyelids as open
@@ -718,17 +676,17 @@ function startClawGestures() {
         break;
       }
       case 'pointLeft': {
-        const target = -15;
-        const swing = Math.sin(t * 2) * 3;
+        const target = -10;
+        const swing = Math.sin(t * 2) * 2;
         leftClaw.style.transform = `rotate(${target + swing}deg)`;
-        rightClaw.style.transform = `rotate(${Math.sin(t * 3) * 4}deg)`;
+        rightClaw.style.transform = `rotate(${Math.sin(t * 3) * 3}deg)`;
         break;
       }
       case 'pointRight': {
-        const target = 15;
-        const swing = Math.sin(t * 2) * 3;
+        const target = 10;
+        const swing = Math.sin(t * 2) * 2;
         rightClaw.style.transform = `rotate(${target + swing}deg)`;
-        leftClaw.style.transform = `rotate(${-Math.sin(t * 3) * 4}deg)`;
+        leftClaw.style.transform = `rotate(${-Math.sin(t * 3) * 3}deg)`;
         break;
       }
     }
@@ -745,12 +703,13 @@ function stopClawGestures() {
   rightClaw.style.transform = '';
 }
 
-// Idle claw subtle movement
+// Idle claw subtle movement (pincers on top)
+var antennaWiggleActive = false;
 let idleClawT = 0;
 function idleClawMovement() {
-  if (crawsState === 'idle' && !clawAnimActive && !clawGestureActive) {
+  if (crawsState === 'idle' && !clawAnimActive && !clawGestureActive && !antennaWiggleActive) {
     idleClawT += 0.01;
-    const subtle = Math.sin(idleClawT) * 2;
+    const subtle = Math.sin(idleClawT) * 1.5;
     leftClaw.style.transform = `rotate(${-subtle}deg)`;
     rightClaw.style.transform = `rotate(${subtle}deg)`;
   }
@@ -764,39 +723,26 @@ idleClawMovement();
 
 function setAntennaState(state) {
   switch (state) {
-    case 'perked': // interested / listening
-      antennaL.setAttribute('d', 'M 140 80 Q 125 30 110 5');
-      antennaTipL.setAttribute('cx', '110');
-      antennaTipL.setAttribute('cy', '5');
-      antennaR.setAttribute('d', 'M 220 80 Q 235 30 250 5');
-      antennaTipR.setAttribute('cx', '250');
-      antennaTipR.setAttribute('cy', '5');
+    case 'perked': // interested / listening - pincers spread wider
+      antennaL.setAttribute('d', 'M 80 65 Q 62 40 48 28 Q 40 22 45 14 Q 52 8 60 14 Q 68 20 72 32');
+      antennaR.setAttribute('d', 'M 120 65 Q 138 40 152 28 Q 160 22 155 14 Q 148 8 140 14 Q 132 20 128 32');
       break;
-    case 'drooping': // sad / thinking
-      antennaL.setAttribute('d', 'M 140 80 Q 115 55 95 45');
-      antennaTipL.setAttribute('cx', '95');
-      antennaTipL.setAttribute('cy', '45');
-      antennaR.setAttribute('d', 'M 220 80 Q 245 55 265 45');
-      antennaTipR.setAttribute('cx', '265');
-      antennaTipR.setAttribute('cy', '45');
+    case 'drooping': // sad / thinking - pincers droop outward
+      antennaL.setAttribute('d', 'M 80 65 Q 65 52 55 48 Q 50 46 53 40 Q 58 35 62 38 Q 68 42 72 50');
+      antennaR.setAttribute('d', 'M 120 65 Q 135 52 145 48 Q 150 46 147 40 Q 142 35 138 38 Q 132 42 128 50');
       break;
     case 'excited': // wiggling
       startAntennaWiggle();
       return;
     case 'idle':
     default:
-      antennaL.setAttribute('d', 'M 140 80 Q 120 40 100 20');
-      antennaTipL.setAttribute('cx', '100');
-      antennaTipL.setAttribute('cy', '20');
-      antennaR.setAttribute('d', 'M 220 80 Q 240 40 260 20');
-      antennaTipR.setAttribute('cx', '260');
-      antennaTipR.setAttribute('cy', '20');
+      antennaL.setAttribute('d', 'M 80 65 Q 68 45 55 35 Q 48 30 52 22 Q 58 15 65 20 Q 72 25 75 35');
+      antennaR.setAttribute('d', 'M 120 65 Q 132 45 145 35 Q 152 30 148 22 Q 142 15 135 20 Q 128 25 125 35');
       break;
   }
 }
 
 let antennaWiggleFrame = null;
-let antennaWiggleActive = false;
 
 function startAntennaWiggle() {
   antennaWiggleActive = true;
@@ -804,12 +750,10 @@ function startAntennaWiggle() {
   function wiggle() {
     if (!antennaWiggleActive) return;
     t += 0.15;
-    const oscL = Math.sin(t * 4) * 8;
-    const oscR = Math.sin(t * 4 + Math.PI) * 8;
-    antennaL.setAttribute('d', `M 140 80 Q ${120 + oscL} 40 ${100 + oscL} 20`);
-    antennaTipL.setAttribute('cx', 100 + oscL);
-    antennaR.setAttribute('d', `M 220 80 Q ${240 + oscR} 40 ${260 + oscR} 20`);
-    antennaTipR.setAttribute('cx', 260 + oscR);
+    const osc = Math.sin(t * 4) * 4;
+    // Wiggle the claw pincers by rotating them slightly
+    leftClaw.style.transform = `rotate(${-osc}deg)`;
+    rightClaw.style.transform = `rotate(${osc}deg)`;
     antennaWiggleFrame = requestAnimationFrame(wiggle);
   }
   wiggle();
@@ -834,18 +778,12 @@ function scheduleAntennaTwitch() {
 scheduleAntennaTwitch();
 
 function twitchAntenna() {
-  // Quick twitch of left antenna
-  antennaL.style.transition = 'none';
-  antennaL.setAttribute('d', 'M 140 80 Q 115 35 90 25');
-  antennaTipL.style.transition = 'none';
-  antennaTipL.setAttribute('cx', '90');
-  antennaTipL.setAttribute('cy', '25');
+  // Quick twitch of left pincer
+  leftClaw.style.transition = 'transform 0.1s ease';
+  leftClaw.style.transform = 'rotate(-8deg)';
   setTimeout(() => {
-    antennaL.style.transition = 'd 0.4s cubic-bezier(0.34,1.56,0.64,1)';
-    antennaTipL.style.transition = 'cx 0.4s cubic-bezier(0.34,1.56,0.64,1), cy 0.4s cubic-bezier(0.34,1.56,0.64,1)';
-    antennaL.setAttribute('d', 'M 140 80 Q 120 40 100 20');
-    antennaTipL.setAttribute('cx', '100');
-    antennaTipL.setAttribute('cy', '20');
+    leftClaw.style.transition = 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)';
+    leftClaw.style.transform = '';
   }, 200);
 }
 
@@ -897,16 +835,19 @@ document.addEventListener('mousemove', (ev) => {
     robotFaceContainer.style.transform = `rotateY(${parallaxRotY}deg) rotateX(${parallaxRotX}deg)`;
   }
 
-  // Pupils follow mouse
+  // Pupils follow mouse (parallax)
   if (crawsState === 'idle' || crawsState === 'listening') {
-    const pupilShiftX = dx * 4;
-    const pupilShiftY = dy * 3;
-    pupilL.setAttribute('cx', 130 + pupilShiftX);
-    pupilR.setAttribute('cx', 230 + pupilShiftX);
-    pupilL.setAttribute('cy', 175 + pupilShiftY);
-    pupilR.setAttribute('cy', 175 + pupilShiftY);
-    irisL.setAttribute('cx', 130 + pupilShiftX);
-    irisR.setAttribute('cx', 230 + pupilShiftX);
+    const pupilShiftX = dx * 3;
+    const pupilShiftY = dy * 2;
+    pupilL.setAttribute('cx', 85 + pupilShiftX);
+    pupilR.setAttribute('cx', 115 + pupilShiftX);
+    pupilL.setAttribute('cy', 110 + pupilShiftY);
+    pupilR.setAttribute('cy', 110 + pupilShiftY);
+    // Move highlights with pupils
+    highlightL.setAttribute('cx', 83 + pupilShiftX);
+    highlightR.setAttribute('cx', 113 + pupilShiftX);
+    highlightL.setAttribute('cy', 107 + pupilShiftY);
+    highlightR.setAttribute('cy', 107 + pupilShiftY);
   }
 });
 
@@ -916,14 +857,16 @@ function idleEyeDrift() {
     setTimeout(idleEyeDrift, 2000);
     return;
   }
-  const driftX = (Math.random() - 0.5) * 5;
-  const driftY = (Math.random() - 0.5) * 3;
-  pupilL.setAttribute('cx', 130 + driftX);
-  pupilR.setAttribute('cx', 230 + driftX);
-  pupilL.setAttribute('cy', 175 + driftY);
-  pupilR.setAttribute('cy', 175 + driftY);
-  irisL.setAttribute('cx', 130 + driftX);
-  irisR.setAttribute('cx', 230 + driftX);
+  const driftX = (Math.random() - 0.5) * 3;
+  const driftY = (Math.random() - 0.5) * 2;
+  pupilL.setAttribute('cx', 85 + driftX);
+  pupilR.setAttribute('cx', 115 + driftX);
+  pupilL.setAttribute('cy', 110 + driftY);
+  pupilR.setAttribute('cy', 110 + driftY);
+  highlightL.setAttribute('cx', 83 + driftX);
+  highlightR.setAttribute('cx', 113 + driftX);
+  highlightL.setAttribute('cy', 107 + driftY);
+  highlightR.setAttribute('cy', 107 + driftY);
   setTimeout(idleEyeDrift, 3000 + Math.random() * 4000);
 }
 setTimeout(idleEyeDrift, 5000);
@@ -935,7 +878,7 @@ function startEyePulse() {
   function pulse() {
     if (crawsState !== 'speaking') return;
     t += 0.08;
-    const size = 8 + Math.abs(Math.sin(t * 2.5)) * 3;
+    const size = 7 + Math.abs(Math.sin(t * 2.5)) * 2;
     pupilL.setAttribute('r', size);
     pupilR.setAttribute('r', size);
     eyePulseFrame = requestAnimationFrame(pulse);
@@ -945,8 +888,8 @@ function startEyePulse() {
 
 function stopEyePulse() {
   if (eyePulseFrame) cancelAnimationFrame(eyePulseFrame);
-  pupilL.setAttribute('r', '8');
-  pupilR.setAttribute('r', '8');
+  pupilL.setAttribute('r', '7');
+  pupilR.setAttribute('r', '7');
 }
 
 // ==============================================================
@@ -1030,9 +973,9 @@ function startListeningMicroExpressions() {
 
     // Small mouth movements as if about to respond
     if (Math.random() < 0.02) {
-      mouth.setAttribute('ry', '2');
+      mouth.setAttribute('ry', '1.5');
       setTimeout(() => {
-        if (microExprActive) mouth.setAttribute('ry', '1');
+        if (microExprActive) mouth.setAttribute('ry', '0');
       }, 200);
     }
 
@@ -1053,112 +996,118 @@ function setEmotion(emotion) {
   currentEmotion = emotion;
   const lids = getEmotionEyelids(emotion);
 
+  // Reset all special elements to hidden
+  happyEyeL.style.opacity = '0';
+  happyEyeR.style.opacity = '0';
+  blushL.style.opacity = '0';
+  blushR.style.opacity = '0';
+  thinkingDots.style.opacity = '0';
+  sweatDrop.style.opacity = '0';
+  sparkles.style.opacity = '0';
+  // Show normal eyes by default
+  pupilL.style.opacity = '1';
+  pupilR.style.opacity = '1';
+  highlightL.style.opacity = '1';
+  highlightR.style.opacity = '1';
+
   switch (emotion) {
     case 'neutral':
-      // Relaxed face, slight smile
+      // Normal eyes, no mouth
       setEyelids(lids.left, lids.right);
-      pupilL.setAttribute('r', '8');
-      pupilR.setAttribute('r', '8');
-      pupilL.setAttribute('cx', '130');
-      pupilR.setAttribute('cx', '230');
-      pupilL.setAttribute('cy', '175');
-      pupilR.setAttribute('cy', '175');
-      irisL.setAttribute('cx', '130');
-      irisR.setAttribute('cx', '230');
-      // Slight smile
-      mouth.setAttribute('ry', '1');
-      mouth.setAttribute('rx', '22');
-      mouth.setAttribute('cy', '267');
-      upperLip.setAttribute('d', 'M 150 265 Q 165 260 180 262 Q 195 260 210 265');
-      lowerLip.setAttribute('d', 'M 152 269 Q 166 273 180 274 Q 194 273 208 269');
-      // Neutral brows
-      browL.setAttribute('d', 'M 108 148 Q 130 140 152 148');
-      browR.setAttribute('d', 'M 208 148 Q 230 140 252 148');
+      pupilL.setAttribute('r', '7');
+      pupilR.setAttribute('r', '7');
+      pupilL.setAttribute('cx', '85');
+      pupilR.setAttribute('cx', '115');
+      pupilL.setAttribute('cy', '110');
+      pupilR.setAttribute('cy', '110');
+      highlightL.setAttribute('cx', '83');
+      highlightR.setAttribute('cx', '113');
+      highlightL.setAttribute('cy', '107');
+      highlightR.setAttribute('cy', '107');
+      highlightL.setAttribute('r', '2.5');
+      highlightR.setAttribute('r', '2.5');
+      // No mouth
+      mouth.setAttribute('ry', '0');
+      mouth.setAttribute('rx', '8');
       // Antennae idle
       setAntennaState('idle');
-      // Claws relaxed (handled by idle loop)
       break;
 
     case 'happy':
-      // Squinted eyes, mouth curved up, antenna wiggle, claws slightly raised
+      // Eyes become curved lines (^_^), blush circles, sparkles
       setEyelids(lids.left, lids.right);
-      pupilL.setAttribute('r', '9');
-      pupilR.setAttribute('r', '9');
-      // Mouth curved up (smile)
-      mouth.setAttribute('ry', '3');
-      mouth.setAttribute('rx', '24');
-      mouth.setAttribute('cy', '268');
-      upperLip.setAttribute('d', 'M 148 264 Q 164 258 180 259 Q 196 258 212 264');
-      lowerLip.setAttribute('d', 'M 150 271 Q 165 276 180 277 Q 195 276 210 271');
-      // Happy brows (relaxed, slightly raised)
-      browL.setAttribute('d', 'M 108 146 Q 130 137 152 146');
-      browR.setAttribute('d', 'M 208 146 Q 230 137 252 146');
+      // Hide normal eyes, show happy curved eyes
+      pupilL.style.opacity = '0';
+      pupilR.style.opacity = '0';
+      highlightL.style.opacity = '0';
+      highlightR.style.opacity = '0';
+      happyEyeL.style.opacity = '1';
+      happyEyeR.style.opacity = '1';
+      blushL.style.opacity = '1';
+      blushR.style.opacity = '1';
+      sparkles.style.opacity = '1';
+      // No mouth (happy just via eyes)
+      mouth.setAttribute('ry', '0');
       // Antenna wiggle
       setAntennaState('excited');
-      // Claws slightly raised
-      leftClaw.style.transform = 'rotate(-8deg) translateY(-3px)';
-      rightClaw.style.transform = 'rotate(8deg) translateY(-3px)';
       break;
 
     case 'thinking':
-      // One eye slightly closed, antenna drooping, one claw at chin
+      // One eye smaller, thinking dots appear
       setEyelids(lids.left, lids.right);
-      // Eyes look up-left
-      pupilL.setAttribute('cx', '126');
-      pupilR.setAttribute('cx', '226');
-      pupilL.setAttribute('cy', '172');
-      pupilR.setAttribute('cy', '172');
-      pupilL.setAttribute('r', '7');
+      // Eyes look up-left, left eye slightly smaller
+      pupilL.setAttribute('cx', '83');
+      pupilR.setAttribute('cx', '113');
+      pupilL.setAttribute('cy', '108');
+      pupilR.setAttribute('cy', '108');
+      pupilL.setAttribute('r', '5');
       pupilR.setAttribute('r', '7');
-      irisL.setAttribute('cx', '126');
-      irisR.setAttribute('cx', '226');
-      // Thoughtful mouth
-      mouth.setAttribute('ry', '1');
-      mouth.setAttribute('rx', '18');
-      // Concerned brows (angled inward)
-      browL.setAttribute('d', 'M 108 150 Q 130 142 152 146');
-      browR.setAttribute('d', 'M 208 146 Q 230 142 252 150');
+      highlightL.setAttribute('cx', '81');
+      highlightR.setAttribute('cx', '111');
+      highlightL.setAttribute('cy', '105');
+      highlightR.setAttribute('cy', '105');
+      // Show thinking dots
+      thinkingDots.style.opacity = '1';
+      // No mouth
+      mouth.setAttribute('ry', '0');
       // Drooping antennae
       setAntennaState('drooping');
-      // Left claw near chin, slight head tilt
-      leftClaw.style.transform = 'rotate(-15deg) translateY(-8px)';
-      rightClaw.style.transform = 'rotate(3deg)';
       break;
 
     case 'surprised':
-      // Wide eyes, round mouth, antennas perked, claws open wide
-      setEyelids(lids.left, lids.right);
-      pupilL.setAttribute('r', '11');
-      pupilR.setAttribute('r', '11');
-      // Round mouth
-      mouth.setAttribute('ry', '8');
-      mouth.setAttribute('rx', '14');
-      mouth.setAttribute('cy', '267');
-      mouth.setAttribute('fill', 'rgba(0,180,160,0.3)');
-      upperLip.setAttribute('d', 'M 152 260 Q 166 255 180 256 Q 194 255 208 260');
-      lowerLip.setAttribute('d', 'M 154 275 Q 167 282 180 283 Q 193 282 206 275');
-      chinGroup.style.transform = 'translateY(2px)';
-      // Raised brows
-      browL.setAttribute('d', 'M 108 142 Q 130 132 152 142');
-      browR.setAttribute('d', 'M 208 142 Q 230 132 252 142');
-      // Perked antennae
-      setAntennaState('perked');
-      // Claws open wide
-      leftClaw.style.transform = 'rotate(-20deg)';
-      rightClaw.style.transform = 'rotate(20deg)';
-      break;
-
-    case 'listening':
-      // Eyes wide, antennas perked, mouth slightly open, head tilted
+      // Eyes become bigger circles, small round mouth
       setEyelids(lids.left, lids.right);
       pupilL.setAttribute('r', '10');
       pupilR.setAttribute('r', '10');
-      // Mouth slightly open
-      mouth.setAttribute('ry', '2');
-      mouth.setAttribute('rx', '20');
-      // Slightly raised brows
-      browL.setAttribute('d', 'M 108 145 Q 130 137 152 145');
-      browR.setAttribute('d', 'M 208 145 Q 230 137 252 145');
+      pupilL.setAttribute('cx', '85');
+      pupilR.setAttribute('cx', '115');
+      pupilL.setAttribute('cy', '110');
+      pupilR.setAttribute('cy', '110');
+      highlightL.setAttribute('r', '3');
+      highlightR.setAttribute('r', '3');
+      // Small round mouth
+      mouth.setAttribute('ry', '4');
+      mouth.setAttribute('rx', '4');
+      mouth.setAttribute('cy', '135');
+      mouth.setAttribute('fill', 'rgba(80,20,20,0.7)');
+      // Perked antennae
+      setAntennaState('perked');
+      // Claws spread
+      leftClaw.style.transform = 'rotate(-12deg)';
+      rightClaw.style.transform = 'rotate(12deg)';
+      break;
+
+    case 'listening':
+      // Eyes look slightly upward
+      setEyelids(lids.left, lids.right);
+      pupilL.setAttribute('r', '8');
+      pupilR.setAttribute('r', '8');
+      pupilL.setAttribute('cy', '108');
+      pupilR.setAttribute('cy', '108');
+      highlightL.setAttribute('cy', '105');
+      highlightR.setAttribute('cy', '105');
+      // No mouth
+      mouth.setAttribute('ry', '0');
       // Perked antennae
       setAntennaState('perked');
       // Start listening micro-expressions
@@ -1166,23 +1115,22 @@ function setEmotion(emotion) {
       break;
 
     case 'speaking':
-      // Engaged eyes, head bobbing, claw gestures, mouth synced
+      // Normal eyes, small oval mouth appears and animates
       setEyelids(lids.left, lids.right);
-      pupilL.setAttribute('r', '8');
-      pupilR.setAttribute('r', '8');
+      pupilL.setAttribute('r', '7');
+      pupilR.setAttribute('r', '7');
       // Center pupils (eye contact)
-      pupilL.setAttribute('cx', '130');
-      pupilR.setAttribute('cx', '230');
-      pupilL.setAttribute('cy', '175');
-      pupilR.setAttribute('cy', '175');
-      irisL.setAttribute('cx', '130');
-      irisR.setAttribute('cx', '230');
-      // Slightly raised brows
-      browL.setAttribute('d', 'M 108 146 Q 130 139 152 146');
-      browR.setAttribute('d', 'M 208 146 Q 230 139 252 146');
+      pupilL.setAttribute('cx', '85');
+      pupilR.setAttribute('cx', '115');
+      pupilL.setAttribute('cy', '110');
+      pupilR.setAttribute('cy', '110');
+      highlightL.setAttribute('cx', '83');
+      highlightR.setAttribute('cx', '113');
+      highlightL.setAttribute('cy', '107');
+      highlightR.setAttribute('cy', '107');
       // Antenna slightly perked
       setAntennaState('perked');
-      // Head bob + claw gestures started by speak() function
+      // Mouth animation started by speak() function
       break;
   }
 }
@@ -1551,7 +1499,7 @@ function realtimeAudioLoop() {
     setMouthVolume(volume * 2);
 
     // Pupil dilation based on volume
-    const pupilSize = 8 + volume * 4;
+    const pupilSize = 7 + volume * 3;
     pupilL.setAttribute('r', pupilSize);
     pupilR.setAttribute('r', pupilSize);
 
@@ -1760,16 +1708,16 @@ setTimeout(() => {
   // Step 3: Eyes power on - show face (3.2s)
   setTimeout(() => {
     faceWrapper.style.opacity = '1';
-    pupilL.setAttribute('fill', 'rgba(0,229,204,0.1)');
-    pupilR.setAttribute('fill', 'rgba(0,229,204,0.1)');
+    pupilL.setAttribute('fill', 'rgba(26,26,26,0.2)');
+    pupilR.setAttribute('fill', 'rgba(26,26,26,0.2)');
   }, 3200);
 
-  // Step 4: Eyes glow bright (3.8s)
+  // Step 4: Eyes appear fully (3.8s)
   setTimeout(() => {
     pupilL.style.transition = 'fill 0.8s ease';
     pupilR.style.transition = 'fill 0.8s ease';
-    pupilL.setAttribute('fill', 'rgba(0,229,204,0.9)');
-    pupilR.setAttribute('fill', 'rgba(0,229,204,0.9)');
+    pupilL.setAttribute('fill', '#1a1a1a');
+    pupilR.setAttribute('fill', '#1a1a1a');
   }, 3800);
 
   // Step 5: Mouth test - gentle open and close (4.2s)
@@ -1777,11 +1725,11 @@ setTimeout(() => {
     let testT = 0;
     const testInterval = setInterval(() => {
       testT += 0.2;
-      const ry = Math.sin(testT) * 6;
-      mouth.setAttribute('ry', Math.max(1, ry));
+      const ry = Math.sin(testT) * 4;
+      mouth.setAttribute('ry', Math.max(0, ry));
       if (testT > Math.PI) {
         clearInterval(testInterval);
-        mouth.setAttribute('ry', '1');
+        mouth.setAttribute('ry', '0');
       }
     }, 50);
   }, 4200);
