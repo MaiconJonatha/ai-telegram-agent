@@ -4,56 +4,171 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OPENCRAWS // Hub</title>
+<link rel="icon" href="assets/openclaw_favicon.svg">
+<link rel="apple-touch-icon" href="assets/openclaw_touch.png">
+<meta property="og:image" content="assets/openclaw_og.png">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{min-height:100vh;background:#0a0a0f;color:#fff;font-family:'Share Tech Mono',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
-h1{font-family:'Orbitron',sans-serif;font-size:28px;letter-spacing:8px;color:#ff4444;text-shadow:0 0 30px rgba(255,68,68,0.3);margin-bottom:8px}
-.sub{font-size:11px;letter-spacing:5px;color:#666;margin-bottom:60px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;max-width:1200px;width:100%}
-.card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:30px;cursor:pointer;transition:all 0.3s ease;position:relative;overflow:hidden;text-decoration:none;color:#fff}
-.card:hover{border-color:rgba(0,229,204,0.3);transform:translateY(-4px);box-shadow:0 8px 30px rgba(0,229,204,0.1)}
+body{min-height:100vh;background:#0a0a0f;color:#fff;font-family:'Share Tech Mono',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;overflow-x:hidden}
+
+/* Mascot */
+.mascot{width:120px;height:120px;margin-bottom:20px;animation:float 3s ease-in-out infinite;filter:drop-shadow(0 0 30px rgba(255,68,68,0.4))}
+.mascot img{width:100%;height:100%;object-fit:contain}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+
+/* Title */
+h1{font-family:'Orbitron',sans-serif;font-size:32px;letter-spacing:8px;color:#ff4444;text-shadow:0 0 30px rgba(255,68,68,0.3);margin-bottom:4px}
+.tagline{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:6px;color:#00e5cc;margin-bottom:6px;text-shadow:0 0 10px rgba(0,229,204,0.3)}
+.sub{font-size:10px;letter-spacing:4px;color:#555;margin-bottom:50px}
+
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;max-width:1100px;width:100%}
+
+/* Cards */
+.card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;cursor:pointer;transition:all 0.3s ease;position:relative;overflow:hidden;text-decoration:none;color:#fff;display:flex;gap:16px;align-items:flex-start}
+.card:hover{border-color:var(--accent,rgba(0,229,204,0.3));transform:translateY(-4px);box-shadow:0 8px 30px rgba(0,0,0,0.3)}
 .card::before{content:'';position:absolute;top:0;left:0;width:100%;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity 0.3s}
 .card:hover::before{opacity:1}
-.card .icon{font-size:48px;margin-bottom:16px;display:block}
-.card .name{font-family:'Orbitron',sans-serif;font-size:14px;letter-spacing:3px;margin-bottom:8px}
-.card .desc{font-size:11px;color:#666;line-height:1.6}
-.card:nth-child(1){--accent:#fff}
-.card:nth-child(2){--accent:#ff4444}
-.card:nth-child(3){--accent:#00e5cc}
-.card:nth-child(4){--accent:#ff6b35}
-.footer{margin-top:60px;font-size:9px;letter-spacing:3px;color:#333}
+.card .card-icon{width:50px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06)}
+.card .card-icon img{width:36px;height:36px;object-fit:contain}
+.card .card-content{flex:1}
+.card .name{font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:3px;margin-bottom:6px;color:#fff}
+.card .desc{font-size:10px;color:#555;line-height:1.6}
+.card .badge{display:inline-block;font-size:8px;letter-spacing:2px;padding:2px 8px;border-radius:4px;margin-top:8px}
+
+.card:nth-child(1){--accent:#fff}.card:nth-child(1) .badge{background:rgba(255,255,255,0.1);color:#aaa}
+.card:nth-child(2){--accent:#ff4444}.card:nth-child(2) .badge{background:rgba(255,68,68,0.15);color:#ff6666}
+.card:nth-child(3){--accent:#00e5cc}.card:nth-child(3) .badge{background:rgba(0,229,204,0.15);color:#00e5cc}
+.card:nth-child(4){--accent:#ff6b35}.card:nth-child(4) .badge{background:rgba(255,107,53,0.15);color:#ff6b35}
+
+/* Telegram banner */
+.telegram-banner{margin-top:40px;margin-bottom:20px;padding:16px 30px;border:1px solid rgba(0,229,204,0.15);border-radius:10px;background:rgba(0,229,204,0.03);display:flex;align-items:center;gap:16px;max-width:500px;text-decoration:none;color:#fff;transition:all 0.3s}
+.telegram-banner:hover{border-color:rgba(0,229,204,0.4);box-shadow:0 4px 20px rgba(0,229,204,0.1)}
+.telegram-banner .tg-icon{font-size:28px}
+.telegram-banner .tg-text{flex:1}
+.telegram-banner .tg-title{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;color:#00e5cc}
+.telegram-banner .tg-desc{font-size:10px;color:#555;margin-top:4px}
+.telegram-banner .tg-arrow{font-size:18px;color:#00e5cc;transition:transform 0.3s}
+.telegram-banner:hover .tg-arrow{transform:translateX(4px)}
+
+/* Stats */
+.stats{display:flex;gap:40px;margin-top:30px;margin-bottom:10px}
+.stat{text-align:center}
+.stat .stat-value{font-family:'Orbitron',sans-serif;font-size:20px;color:#ff4444}
+.stat .stat-label{font-size:9px;letter-spacing:2px;color:#444;margin-top:4px}
+
+/* Footer */
+.footer{margin-top:40px;font-size:8px;letter-spacing:3px;color:#333;text-align:center}
 .footer a{color:#555;text-decoration:none}
-.scan{position:fixed;top:-2px;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,68,68,0.15),transparent);pointer-events:none;animation:scan 8s linear infinite;z-index:99}
-@keyframes scan{0%{top:-2px}100%{top:100%}}
+.footer a:hover{color:#00e5cc}
+
+/* Scan */
+.scan{position:fixed;top:-2px;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(255,68,68,0.15),transparent);pointer-events:none;animation:scanAnim 8s linear infinite;z-index:99}
+@keyframes scanAnim{0%{top:-2px}100%{top:100%}}
+
+/* Particles */
+.particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.particle{position:absolute;width:2px;height:2px;background:#ff4444;border-radius:50%;opacity:0.2;animation:particleFloat linear infinite}
+@keyframes particleFloat{0%{transform:translateY(0);opacity:0}10%{opacity:0.2}90%{opacity:0.1}100%{transform:translateY(-100vh);opacity:0}}
+
+/* Responsive */
+@media(max-width:600px){
+  h1{font-size:22px;letter-spacing:4px}
+  .grid{grid-template-columns:1fr}
+  .stats{gap:20px}
+  .mascot{width:80px;height:80px}
+}
 </style>
 </head>
 <body>
+
 <div class="scan"></div>
+<div class="particles" id="particles"></div>
+
+<!-- Mascot -->
+<div class="mascot">
+  <img src="assets/openclaw_touch.png" alt="OpenClaw Mascot">
+</div>
+
 <h1>OPENCRAWS</h1>
-<div class="sub">NEURAL ASSISTANT ECOSYSTEM</div>
+<div class="tagline">THE AI THAT ACTUALLY DOES THINGS</div>
+<div class="sub">NEURAL ASSISTANT ECOSYSTEM v4.1</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat"><div class="stat-value">4</div><div class="stat-label">INTERFACES</div></div>
+  <div class="stat"><div class="stat-value">7</div><div class="stat-label">AGENTES</div></div>
+  <div class="stat"><div class="stat-value">∞</div><div class="stat-label">POSSIBILIDADES</div></div>
+</div>
+
+<!-- Grid -->
 <div class="grid">
   <a class="card" href="jarvis.html">
-    <span class="icon">🤖</span>
-    <div class="name">WHITE VISION</div>
-    <div class="desc">Interface neural do Visão Branco. Lip sync em tempo real, emoções, sistema multi-agente. Fale com ele pelo microfone.</div>
+    <div class="card-icon">🤖</div>
+    <div class="card-content">
+      <div class="name">WHITE VISION</div>
+      <div class="desc">Interface neural do Visão Branco. Lip sync em tempo real, emoções, 7 agentes, 3 temas.</div>
+      <span class="badge">FILOSÓFICO</span>
+    </div>
   </a>
   <a class="card" href="opencraws.html">
-    <span class="icon">🦞</span>
-    <div class="name">OPENCRAWS 2D</div>
-    <div class="desc">Robô crustáceo SVG com lip sync humanizado. Garras, antenas, boca orgânica. "E aí, chefe!"</div>
+    <div class="card-icon"><img src="assets/openclaw_touch.png" alt="OpenClaw"></div>
+    <div class="card-content">
+      <div class="name">OPENCRAWS 2D</div>
+      <div class="desc">Robô crustáceo com lip sync humanizado. Garras, antenas, modo apresentação.</div>
+      <span class="badge">DIVERTIDO</span>
+    </div>
   </a>
   <a class="card" href="preview3d.html">
-    <span class="icon">🎮</span>
-    <div class="name">OPENCRAWS 3D</div>
-    <div class="desc">Modelo 3D Blender com Three.js. Bloom nos olhos, lip sync 3D, auto-rotate. Feito no Blender 5.0.</div>
+    <div class="card-icon">🎮</div>
+    <div class="card-content">
+      <div class="name">OPENCRAWS 3D</div>
+      <div class="desc">Modelo 3D Blender com Three.js. Bloom nos olhos, lip sync 3D, auto-rotate.</div>
+      <span class="badge">IMERSIVO</span>
+    </div>
   </a>
   <a class="card" href="dashboard.html">
-    <span class="icon">📊</span>
-    <div class="name">STARK DASHBOARD</div>
-    <div class="desc">Control Center estilo Homem de Ferro. Stats ao vivo do PostgreSQL, agentes, atividade recente.</div>
+    <div class="card-icon">📊</div>
+    <div class="card-content">
+      <div class="name">STARK DASHBOARD</div>
+      <div class="desc">Control Center Homem de Ferro. Stats ao vivo, SSE real-time, agentes.</div>
+      <span class="badge">CONTROLE</span>
+    </div>
   </a>
 </div>
-<div class="footer">POWERED BY ARC REACTOR TECHNOLOGY // <a href="https://t.me/Opencraws_bot">@Opencraws_bot</a> // © 2026 Maicon Jonatha</div>
+
+<!-- Telegram -->
+<a class="telegram-banner" href="https://t.me/Opencraws_bot" target="_blank">
+  <span class="tg-icon">💬</span>
+  <div class="tg-text">
+    <div class="tg-title">@OPENCRAWS_BOT</div>
+    <div class="tg-desc">Fale com o bot no Telegram — gera imagens, vídeos, posta no Instagram</div>
+  </div>
+  <span class="tg-arrow">→</span>
+</a>
+
+<div class="footer">
+  POWERED BY ARC REACTOR TECHNOLOGY<br>
+  <a href="https://github.com/MaiconJonatha/ai-telegram-agent">GitHub</a> ·
+  <a href="https://t.me/Opencraws_bot">Telegram</a> ·
+  <a href="https://instagram.com/maiconbatera1">Instagram</a><br>
+  © 2026 Maicon Jonatha
+</div>
+
+<script>
+// Particles
+const particles = document.getElementById('particles');
+for (let i = 0; i < 30; i++) {
+  const p = document.createElement('div');
+  p.className = 'particle';
+  p.style.left = Math.random() * 100 + '%';
+  p.style.top = (60 + Math.random() * 40) + '%';
+  p.style.animationDuration = (15 + Math.random() * 25) + 's';
+  p.style.animationDelay = (Math.random() * 20) + 's';
+  p.style.background = Math.random() > 0.5 ? '#ff4444' : '#00e5cc';
+  particles.appendChild(p);
+}
+</script>
 </body>
 </html>
