@@ -44,7 +44,7 @@ const pg_1 = require("pg");
 const sse_1 = require("./sse");
 const PORT = parseInt(process.env.PORT || "10000");
 const startTime = Date.now();
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "2.0.0";
 const sseClients = (0, sse_1.getSseClients)();
 console.log("🚀 Iniciando Opencrawsbuties...");
 console.log(`⏰ ${new Date().toLocaleString("pt-BR")}`);
@@ -105,6 +105,15 @@ const server = http_1.default.createServer(async (req, res) => {
         });
     };
     try {
+        // GET /api/version
+        if (url === '/api/version' && req.method === 'GET') {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                version: APP_VERSION,
+                endpoints: ["/api/health", "/api/version", "/api/stats", "/api/activity", "/api/agents", "/api/events", "/api/media/recent", "/api/vision/chat"]
+            }));
+            return;
+        }
         // GET /api/health
         if (url === '/api/health' && req.method === 'GET') {
             let dbStatus = "unknown";

@@ -88,6 +88,10 @@ bot.use(async (ctx, next) => {
 });
 // Usar repo ativo compartilhado com agent.ts
 const activeRepo = agent_1.activeRepos;
+// /start command - Welcome message
+bot.command("start", async (ctx) => {
+    await ctx.reply("🦀 Olá! Eu sou o Opencraws, seu assistente de IA!\n\nComandos:\n🎨 /flowimg [prompt] - Gerar imagem\n🎬 /flowvid [prompt] - Gerar vídeo\n💬 Fale normalmente - IA responde\n📱 \"posta no instagram\" - Postar mídia\nℹ️ /help - Todos os comandos");
+});
 // Handler para todas mensagens de texto
 bot.on("message:text", async (ctx) => {
     const userId = ctx.from.id.toString();
