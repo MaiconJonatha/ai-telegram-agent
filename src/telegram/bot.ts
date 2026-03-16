@@ -5,6 +5,7 @@ import { generateFlowImage, generateFlowVideo } from "../agent/flow";
 import { postToInstagram } from "../agent/instagram";
 import { addMedia, getLastVideos, mergeVideos } from "../agent/media";
 import { listRepos, getRepoTree, readFile, executeCoderTask, isGitHubConfigured } from "../agent/coder";
+import { askQwenCoder, CODE_PATTERNS } from "../agent/qwen";
 import { logMedia, logAgent, clearHistory } from "../db/memory";
 import { InputFile } from "grammy";
 import { broadcastEvent } from "../sse";
@@ -88,6 +89,8 @@ bot.on("message:text", async (ctx) => {
         `🎬 /flowvid [prompt] - Gerar vídeo via Google Flow\n` +
         `🖼️ /img [prompt] - Gerar imagem (provedores alternativos)\n` +
         `🎥 /video [prompt] - Gerar vídeo\n` +
+        `🧠 /qwen [pergunta] - Qwen Coder (IA programadora)\n` +
+        `💻 /code [tarefa] - Programar (Qwen Coder ou GitHub)\n` +
         `💬 Fale normalmente - IA responde naturalmente\n` +
         `📱 "posta no instagram" - Posta mídia no Instagram\n` +
         `🔗 "junta os vídeos" - Merge vídeos com FFmpeg\n` +
@@ -343,15 +346,53 @@ bot.on("message:text", async (ctx) => {
       return;
     }
 
-    // /code [tarefa] - Executar tarefa de programação
+    // /qwen [pergunta] - Qwen Coder (assistente de programação direto)
+    const qwenMatch = text.match(/^\/qwen\s+(.+)/si);
+    if (qwenMatch) {
+      const prompt = qwenMatch[1].trim();
+      await ctx.reply("🧠 Qwen Coder processando...");
+      await ctx.replyWithChatAction("typing");
+
+      try {
+        const response = await askQwenCoder(prompt);
+        broadcastEvent({ type: 'agent', data: { agent: 'qwen-coder', action: 'askQwenCoder', user: userName, timestamp: new Date().toISOString() } });
+        // Split long messages (Telegram limit 4096 chars)
+        if (response.length > 4000) {
+          const parts = response.match(/.{1,4000}/gs) || [response];
+          for (const part of parts) {
+            await ctx.reply(part, { parse_mode: "Markdown" }).catch(() => ctx.reply(part));
+          }
+        } else {
+          await ctx.reply(response, { parse_mode: "Markdown" }).catch(() => ctx.reply(response));
+        }
+      } catch (e) {
+        await ctx.reply("Erro no Qwen Coder. Tente novamente.");
+      }
+      return;
+    }
+
+    // /code [tarefa] - Executar tarefa de programação (GitHub) ou Qwen Coder (sem repo)
     const codeMatch = text.match(/^\/code\s+(.+)/si);
     if (codeMatch) {
-      if (!isGitHubConfigured()) {
-        await ctx.reply("❌ GitHub não configurado. Adicione GITHUB_TOKEN nas variáveis de ambiente.");
-        return;
-      }
-      if (!activeRepo[userId]) {
-        await ctx.reply("📌 Selecione um repo primeiro com `/repo nome/repo`", { parse_mode: "Markdown" });
+      // If no GitHub or no repo, use Qwen Coder directly
+      if (!isGitHubConfigured() || !activeRepo[userId]) {
+        const prompt = codeMatch[1].trim();
+        await ctx.reply("🧠 Qwen Coder processando...");
+        await ctx.replyWithChatAction("typing");
+        try {
+          const response = await askQwenCoder(prompt);
+          broadcastEvent({ type: 'agent', data: { agent: 'qwen-coder', action: 'askQwenCoder', user: userName, timestamp: new Date().toISOString() } });
+          if (response.length > 4000) {
+            const parts = response.match(/.{1,4000}/gs) || [response];
+            for (const part of parts) {
+              await ctx.reply(part, { parse_mode: "Markdown" }).catch(() => ctx.reply(part));
+            }
+          } else {
+            await ctx.reply(response, { parse_mode: "Markdown" }).catch(() => ctx.reply(response));
+          }
+        } catch (e) {
+          await ctx.reply("Erro no Qwen Coder. Tente novamente.");
+        }
         return;
       }
       await ctx.reply(`🤖 Trabalhando na tarefa...\n📦 Repo: ${activeRepo[userId]}\n\nIsso pode levar alguns segundos.`);
@@ -548,6 +589,27 @@ bot.on("message:text", async (ctx) => {
       } else {
         logAgent(userId, "flow", "generateFlowImage-natural", "failed");
         await ctx.reply("❌ Não consegui gerar a imagem.");
+      }
+      return;
+    }
+
+    // ========== DETECCAO NATURAL DE CODIGO (Qwen Coder) ==========
+    if (CODE_PATTERNS.test(text)) {
+      await ctx.reply("🧠 Qwen Coder processando...");
+      await ctx.replyWithChatAction("typing");
+      try {
+        const response = await askQwenCoder(text);
+        broadcastEvent({ type: 'agent', data: { agent: 'qwen-coder', action: 'natural-detect', user: userName, timestamp: new Date().toISOString() } });
+        if (response.length > 4000) {
+          const parts = response.match(/.{1,4000}/gs) || [response];
+          for (const part of parts) {
+            await ctx.reply(part, { parse_mode: "Markdown" }).catch(() => ctx.reply(part));
+          }
+        } else {
+          await ctx.reply(response, { parse_mode: "Markdown" }).catch(() => ctx.reply(response));
+        }
+      } catch (e) {
+        await ctx.reply("Erro no Qwen Coder. Tente novamente.");
       }
       return;
     }
